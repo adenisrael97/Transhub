@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+// Lowercase to match the frontend's Role union exactly so JWT claims work
+// with AuthGuard without any mapping.
+enum Role {
+  passenger
+  operator
+  admin
+  driver
+}
+
+enum OperatorStatus {
+  pending
+  approved
+  declined
+}
+
+enum SeatStatus {
+  available
+  held
+  booked
+}
+
+enum TripStatus {
+  scheduled
+  active
+  completed
+  cancelled
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+  refunded
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  password   String    // argon2id hash — never returned to clients
+  fullName   String
+  phone      String
+  role       Role      @default(passenger)
+  // Set only for role=operator. Null for passengers/admins/drivers.
+  // @unique enforces the 1-to-1 with Operator.
+  operatorId String?   @unique
+  operator   Operator? @relation(fields: [operatorId], references: [id])
+  bookings   Booking[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("users")
+}
+
+// A transport company's onboarding application.
+// No User account is created until an admin approves the application,
+// at which point a User with role=operator is created and linked here.
+model Operator {
+  id               String         @id @default(uuid())
+  companyName      String
+  contactName      String
+  email            String         @unique
+  phone            String
+  city             String
+  fleetSize        String
+  vehicleTypes     String[]
+  routes           String
+  yearsInOperation String
+  cacNumber        String
+  additionalInfo   String?
+  status           OperatorStatus @default(pending)
+  appliedAt        DateTime       @default(now())
+  reviewedAt       DateTime?
+  // Back-references
+  user             User?
+  trips            Trip[]
+
+  @@map("operators")
+}
+
+// A scheduled bus journey offered by an operator.
+// Seats are auto-created when the trip is created; no separate creation step.
+model Trip {
+  id            String     @id @default(uuid())
+  from          String
+  to            String
+  departureTime DateTime
+  arrivalTime   DateTime?
+  price         Int        // price per seat in naira
+  totalSeats    Int
+  vehicleType   String
+  driverNumber  String?
+  status        TripStatus @default(scheduled)
+  operatorId    String
+  operator      Operator   @relation(fields: [operatorId], references: [id])
+  seats         Seat[]
+  bookings      Booking[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([from, to, departureTime])
+  @@map("trips")
+}
+
+// One physical seat on a specific trip.
+// The unique constraint on (tripId, label) is the last-line-of-defense
+// against double-booking — even a logic bug can't create two identical seats.
+model Seat {
+  id      String      @id @default(uuid())
+  tripId  String
+  trip    Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  label   String      // e.g. "A1", "B3"
+  status  SeatStatus  @default(available)
+  // When a 'held' seat's hold lapses. Set on hold, cleared on confirm/release.
+  // The DB-side source of truth for the sweeper that reclaims orphaned holds
+  // (e.g. if the per-hold BullMQ expiry job was never enqueued or Redis was lost).
+  heldUntil DateTime?
+  booking BookedSeat?
+
+  @@unique([tripId, label])
+  // Supports the sweeper's `WHERE status='held' AND heldUntil < now()` scan.
+  @@index([status, heldUntil])
+  @@map("seats")
+}
+
+// A confirmed booking — one per checkout session.
+// paymentRef is unique: webhook idempotency — same Paystack reference can't create two bookings.
+model Booking {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  tripId      String
+  trip        Trip          @relation(fields: [tripId], references: [id])
+  seats       BookedSeat[]
+  status      BookingStatus @default(pending)
+  totalAmount Int           // naira, sum of seats × price
+  paymentRef  String?       @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Supports analytics aggregates (status equality + createdAt range/grouping)
+  // and any status-filtered booking lookup.
+  @@index([status, createdAt])
+  @@map("bookings")
+}
+
+// Junction: one confirmed seat can belong to exactly one booking.
+// The @unique on seatId is the DB-level last line of defence — a seat can only
+// ever appear in one confirmed booking even if application logic has a bug.
+model BookedSeat {
+  id        String  @id @default(uuid())
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  seatId    String  @unique
+  seat      Seat    @relation(fields: [seatId], references: [id])
+
+  @@map("booked_seats")
+}
