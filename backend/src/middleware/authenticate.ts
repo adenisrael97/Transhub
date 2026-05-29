@@ -8,6 +8,10 @@
  */
 import type { Request, Response, NextFunction } from "express";
 import { UnauthorizedError } from "../shared/errors";
+// Intentional exception to the public-interface rule: importing the auth module's
+// index here would create an index → routes → middleware → index cycle. auth.tokens
+// is a dependency-free leaf, so we import it directly. See the file header.
+// eslint-disable-next-line boundaries/dependencies
 import { verifyAccessToken } from "../modules/auth/auth.tokens";
 
 export function authenticate(req: Request, _res: Response, next: NextFunction): void {

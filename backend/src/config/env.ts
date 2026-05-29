@@ -38,10 +38,10 @@ const EnvSchema = z.object({
 const parsed = EnvSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  // eslint-disable-next-line no-console
+  // console (not the pino logger) on purpose: this runs before the logger, which
+  // itself depends on validated env, can be constructed.
   console.error("❌ Invalid environment variables:");
   for (const issue of parsed.error.issues) {
-    // eslint-disable-next-line no-console
     console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
   }
   process.exit(1);
@@ -53,7 +53,6 @@ export type Env = typeof env;
 // Refuse to start if production SMTP is not configured. Both are needed for
 // authenticated SMTP — failing here beats discovering it at the first email.
 if (env.NODE_ENV === "production" && (!env.SMTP_USER || !env.SMTP_PASS)) {
-  // eslint-disable-next-line no-console
   console.error("❌ SMTP_USER and SMTP_PASS are required in production");
   process.exit(1);
 }

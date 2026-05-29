@@ -18,7 +18,7 @@ import { env } from "./config/env";
 import { logger } from "./infra/logger";
 import { requestId } from "./middleware/request-id";
 import { errorHandler, notFoundHandler } from "./middleware/error";
-import { healthRouter } from "./modules/health/health.routes";
+import { healthRouter } from "./modules/health";
 import { authRouter } from "./modules/auth";
 import { operatorsRouter } from "./modules/operators";
 import { tripsRouter } from "./modules/trips";

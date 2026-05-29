@@ -5,7 +5,7 @@
  */
 import { ConflictError, NotFoundError } from "../../shared/errors";
 import { pageMeta, type PaginationQuery, type PageMeta } from "../../shared/pagination";
-import { operatorsRepository } from "../operators/operators.repository";
+import { operatorsService } from "../operators";
 import { tripsRepository, type TripDTO, type TripDetailDTO } from "./trips.repository";
 import type { CreateTripInput, SearchTripsQuery } from "./trips.schema";
 
@@ -15,7 +15,7 @@ export const tripsService = {
    * operatorId comes from the JWT — not the request body.
    */
   async create(input: CreateTripInput, operatorId: string): Promise<TripDetailDTO> {
-    const operator = await operatorsRepository.findById(operatorId);
+    const operator = await operatorsService.findById(operatorId);
     if (!operator) {
       throw new NotFoundError("Operator not found");
     }

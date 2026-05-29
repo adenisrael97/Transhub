@@ -37,6 +37,11 @@ export const operatorsService = {
     return operatorsRepository.create(input);
   },
 
+  /** Fetch a single operator by id (used by trips to verify ownership/approval). */
+  findById(id: string): Promise<Operator | null> {
+    return operatorsRepository.findById(id);
+  },
+
   /** List operator applications (paginated), optionally filtered by status. Admin only. */
   async list(
     filter: { status?: ListOperatorsQuery["status"] },

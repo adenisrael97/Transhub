@@ -19,7 +19,7 @@ import {
   scheduleSeatSweep,
   closeQueue,
 } from "./infra/queue/client";
-import { processHoldExpiry, processSeatSweep } from "./modules/bookings/bookings.job";
+import { processHoldExpiry, processSeatSweep } from "./modules/bookings";
 import { notificationsWorker } from "./modules/notifications"; // registers eventBus listeners + starts worker
 
 async function main(): Promise<void> {
