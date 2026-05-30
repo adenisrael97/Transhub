@@ -16,19 +16,16 @@ type Tx = Prisma.TransactionClient;
 // Internal Prisma includes — keep select shapes DRY across queries.
 // ---------------------------------------------------------------------------
 
-// List/search: pull only seat STATUS to compute availableSeats. The seat array
-// itself is never returned to the client (no per-seat exposure, no payload bloat
-// of up to 100 seat objects per trip across a search result page).
+// List/search: count available seats in the DB via a filtered relation count
+// (uses the (tripId, status) index) instead of loading every seat row just to
+// count them in JS. At ~100 seats/trip across a result page this avoids pulling
+// thousands of rows on the hottest endpoint. The seat array is never returned to
+// the client anyway (no per-seat exposure, no payload bloat).
 const TRIP_FOR_LIST = {
   operator: { select: { companyName: true } },
-  seats:    { select: { status: true } },
+  _count:   { select: { seats: { where: { status: "available" } } } },
 } satisfies Prisma.TripInclude;
 
-// Detail: full seat map (id, label, status) for the seat-selection UI.
-const TRIP_WITH_SEATS = {
-  operator: { select: { companyName: true } },
-  seats:    { orderBy: { label: "asc" as const } },
-} satisfies Prisma.TripInclude;
 
 // ---------------------------------------------------------------------------
 // DTO types — what callers (service) work with, not raw Prisma models.
@@ -48,18 +45,13 @@ export interface TripDTO {
   // The driver's phone number is PII. Present only on authenticated operator/admin
   // responses; omitted from public search + trip-detail so it isn't scraped.
   driverNumber?:  string | null;
+  parkName:       string | null;
+  amenities:      string[];
   status:         string;
+  isActive:       boolean;
+  isFull:         boolean;
+  offlineCount:   number;
   createdAt:      string;
-}
-
-export interface TripDetailDTO extends TripDTO {
-  seats: SeatDTO[];
-}
-
-export interface SeatDTO {
-  id:       string;
-  label:    string;
-  isBooked: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +108,12 @@ type RawTrip = {
   totalSeats:   number;
   vehicleType:  string;
   driverNumber: string | null;
+  parkName:     string | null;
+  amenities:    string[];
   status:       string;
+  isActive:     boolean;
+  isFull:       boolean;
+  offlineCount: number;
   operatorId:   string;
   createdAt:    Date;
   updatedAt:    Date;
@@ -124,11 +121,7 @@ type RawTrip = {
 };
 
 type RawTripForList = RawTrip & {
-  seats: { status: string }[];
-};
-
-type RawTripWithSeats = RawTrip & {
-  seats: { id: string; label: string; status: string }[];
+  _count: { seats: number }; // DB-computed count of seats WHERE status='available'
 };
 
 /**
@@ -150,28 +143,22 @@ function baseDTO(raw: RawTrip, availableSeats: number, exposeDriver: boolean): T
     availableSeats,
     vehicleType:    raw.vehicleType,
     ...(exposeDriver ? { driverNumber: raw.driverNumber } : {}),
+    parkName:       raw.parkName,
+    amenities:      raw.amenities,
     status:         raw.status,
+    isActive:       raw.isActive,
+    isFull:         raw.isFull,
+    offlineCount:   raw.offlineCount,
     createdAt:      raw.createdAt.toISOString(),
   };
 }
 
-/** List/search DTO: counts only, no seat array. */
+/** List/search/detail DTO: an available-seat count only — no per-seat data is
+ * ever exposed (seatless booking; the client only needs the count).
+ * Subtract offlineCount so walk-in bookings reduce the displayed availability. */
 function toListDTO(raw: RawTripForList, exposeDriver: boolean): TripDTO {
-  const availableSeats = raw.seats.filter((s) => s.status === "available").length;
+  const availableSeats = Math.max(0, raw._count.seats - raw.offlineCount);
   return baseDTO(raw, availableSeats, exposeDriver);
-}
-
-/** Detail DTO: full seat map for the seat-selection UI. */
-function toDetailDTO(raw: RawTripWithSeats, exposeDriver: boolean): TripDetailDTO {
-  const availableSeats = raw.seats.filter((s) => s.status === "available").length;
-  return {
-    ...baseDTO(raw, availableSeats, exposeDriver),
-    seats: raw.seats.map((s) => ({
-      id:       s.id,
-      label:    s.label,
-      isBooked: s.status !== "available",
-    })),
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -182,7 +169,7 @@ export const tripsRepository = {
    * Create a trip + auto-generate all its seat rows in one transaction.
    * operatorId comes from the JWT, not the request body.
    */
-  async create(data: CreateTripInput, operatorId: string, tx?: Tx): Promise<TripDetailDTO> {
+  async create(data: CreateTripInput, operatorId: string, tx?: Tx): Promise<TripDTO> {
     const client = tx ?? prisma;
     const labels = generateSeatLabels(data.totalSeats);
 
@@ -196,26 +183,28 @@ export const tripsRepository = {
         totalSeats:    data.totalSeats,
         vehicleType:   data.vehicleType,
         driverNumber:  data.driverNumber ?? null,
+        parkName:      data.parkName ?? null,
+        amenities:     data.amenities ?? [],
         operatorId,
         seats: {
           createMany: { data: labels.map((label) => ({ label })) },
         },
       },
-      include: TRIP_WITH_SEATS,
+      include: TRIP_FOR_LIST,
     });
 
     // Operator's own freshly-created trip — they may see the driver number.
-    return toDetailDTO(trip as unknown as RawTripWithSeats, true);
+    return toListDTO(trip as unknown as RawTripForList, true);
   },
 
-  /** Get a single trip with its full seat map. Public endpoint — no driver PII. */
-  async findById(id: string, tx?: Tx): Promise<TripDetailDTO | null> {
+  /** Get a single trip with its available-seat count. Public endpoint — no driver PII. */
+  async findById(id: string, tx?: Tx): Promise<TripDTO | null> {
     const trip = await (tx ?? prisma).trip.findUnique({
       where:   { id },
-      include: TRIP_WITH_SEATS,
+      include: TRIP_FOR_LIST,
     });
     if (!trip) return null;
-    return toDetailDTO(trip as unknown as RawTripWithSeats, false);
+    return toListDTO(trip as unknown as RawTripForList, false);
   },
 
   /** Passenger search: case-insensitive route + date + minimum availability filter. */
@@ -227,12 +216,18 @@ export const tripsRepository = {
   }): Promise<TripDTO[]> {
     const { start: dayStart, end: dayEnd } = watDayBounds(params.date);
 
+    // Exact (case-sensitive) match: params.from/to arrive already canonicalized
+    // by normalizeCity (search schema transform) and stored values are canonical
+    // too, so this uses the (from, to, departureTime) btree index instead of the
+    // un-indexable ILIKE that `mode:"insensitive"` would emit.
     const trips = await prisma.trip.findMany({
       where: {
-        from:          { equals: params.from, mode: "insensitive" },
-        to:            { equals: params.to,   mode: "insensitive" },
+        from:          params.from,
+        to:            params.to,
         departureTime: { gte: dayStart, lte: dayEnd },
         status:        { in: ["scheduled", "active"] },
+        isActive:      true,
+        isFull:        false,
       },
       include: TRIP_FOR_LIST,
       orderBy: { departureTime: "asc" },
@@ -242,6 +237,19 @@ export const tripsRepository = {
     return trips
       .map((t) => toListDTO(t as unknown as RawTripForList, false))
       .filter((t) => t.availableSeats >= params.minAvailable);
+  },
+
+  /**
+   * Driver view: all trips whose driverNumber matches the driver's phone.
+   * Ordered soonest-first so the active trip appears at the top.
+   */
+  async listByDriver(phone: string): Promise<TripDTO[]> {
+    const trips = await prisma.trip.findMany({
+      where:   { driverNumber: phone },
+      include: TRIP_FOR_LIST,
+      orderBy: { departureTime: "asc" },
+    });
+    return trips.map((t) => toListDTO(t as unknown as RawTripForList, true));
   },
 
   /** A page of trips, optionally filtered by operator. Operator/admin only — driver shown. */
@@ -263,6 +271,21 @@ export const tripsRepository = {
   },
 
   /**
+   * Toggle isActive for a trip owned by operatorId.
+   * Uses updateMany with ownership in WHERE — returns null if not found or not owned.
+   */
+  async toggleActive(id: string, operatorId: string, isActive: boolean): Promise<TripDTO | null> {
+    const result = await prisma.trip.updateMany({
+      where: { id, operatorId },
+      data:  { isActive },
+    });
+    if (result.count === 0) return null;
+    const trip = await prisma.trip.findUnique({ where: { id }, include: TRIP_FOR_LIST });
+    if (!trip) return null;
+    return toListDTO(trip as unknown as RawTripForList, true);
+  },
+
+  /**
    * Delete a trip only if it belongs to operatorId (ownership check in WHERE).
    * Returns the number of deleted rows — 0 means not found or not owned.
    */
@@ -271,5 +294,45 @@ export const tripsRepository = {
       where: { id, operatorId },
     });
     return result.count;
+  },
+
+  /**
+   * Manually mark a trip full (or reopen it).
+   * Admin passes operatorId=undefined to bypass ownership check.
+   * Returns null if the trip was not found or not owned by the given operator.
+   */
+  async markFull(id: string, operatorId: string | undefined, isFull: boolean): Promise<TripDTO | null> {
+    const where = operatorId ? { id, operatorId } : { id };
+    const result = await prisma.trip.updateMany({ where, data: { isFull } });
+    if (result.count === 0) return null;
+    const trip = await prisma.trip.findUnique({ where: { id }, include: TRIP_FOR_LIST });
+    if (!trip) return null;
+    return toListDTO(trip as unknown as RawTripForList, true);
+  },
+
+  /**
+   * Record the absolute count of offline (walk-in) bookings for a trip.
+   * Admin passes operatorId=undefined to bypass ownership check.
+   * Returns null if the trip was not found or not owned.
+   */
+  async setOfflineCount(
+    id: string,
+    operatorId: string | undefined,
+    offlineCount: number,
+    autoFull: boolean
+  ): Promise<TripDTO | null> {
+    const where = operatorId ? { id, operatorId } : { id };
+    const data: { offlineCount: number; isFull?: boolean } = { offlineCount };
+    if (autoFull) data.isFull = true;
+    const result = await prisma.trip.updateMany({ where, data });
+    if (result.count === 0) return null;
+    const trip = await prisma.trip.findUnique({ where: { id }, include: TRIP_FOR_LIST });
+    if (!trip) return null;
+    return toListDTO(trip as unknown as RawTripForList, true);
+  },
+
+  /** Raw seat availability count for a trip (used by setOfflineCount to detect auto-full). */
+  async countAvailableSeats(id: string): Promise<number> {
+    return prisma.seat.count({ where: { tripId: id, status: "available" } });
   },
 };

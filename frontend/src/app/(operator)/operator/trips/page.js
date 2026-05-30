@@ -1,219 +1,434 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Bus, Plus, Check } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
-import FilterTabs from "@/components/ui/FilterTabs";
 import Input, { Select } from "@/components/ui/Input";
-import { capitalize } from "@/lib/utils";
-import { CITIES } from "@/lib/constants";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { STATUS_BADGE, CITIES } from "@/lib/constants";
+import { capitalize, formatTime } from "@/lib/utils";
 import useToastStore from "@/store/toastStore";
+import { fetchTrips, createTrip, deleteTrip, toggleTripActive, markTripFull, setTripOfflineCount } from "@/services/trips";
 
-const STATUS_COLOR = {
-  "in-transit": "bg-blue-100 text-blue-700",
-  boarding:     "bg-amber-100 text-amber-700",
-  scheduled:    "bg-gray-100 text-gray-600",
-  completed:    "bg-gray-100 text-gray-500",
-  cancelled:    "bg-red-100 text-red-700",
+const VEHICLE_TYPES = ["Bus", "Luxury Bus", "Coaster", "Car", "SUV"];
+
+const BUS_AMENITIES = [
+  "Air Conditioning", "WiFi", "USB Charging", "Reclining Seats",
+  "Restroom/Toilet", "TV/Entertainment", "Extra Legroom",
+  "Water/Snacks", "Luggage Space",
+];
+
+const EMPTY_FORM = {
+  from: "", to: "", departureTime: "", arrivalTime: "",
+  price: "", totalSeats: "", vehicleType: "Bus", driverNumber: "",
+  parkName: "", amenities: [],
 };
 
-const SEED_TRIPS = [
-  { id: "TR-101", route: "Lagos → Abuja",        dep: "6:00 AM",  arr: "12:30 PM", booked: 16, seats: 18, price: 12000, status: "in-transit", date: "2026-03-25", vehicle: "Bus #PMT-012" },
-  { id: "TR-102", route: "Enugu → Lagos",         dep: "7:30 AM",  arr: "3:00 PM",  booked: 30, seats: 33, price: 9500,  status: "in-transit", date: "2026-03-25", vehicle: "Bus #PMT-045" },
-  { id: "TR-103", route: "Lagos → Owerri",        dep: "9:00 AM",  arr: "4:30 PM",  booked: 14, seats: 18, price: 8000,  status: "boarding",   date: "2026-03-25", vehicle: "Bus #PMT-008" },
-  { id: "TR-104", route: "Abuja → Port Harcourt", dep: "11:00 AM", arr: "6:00 PM",  booked: 8,  seats: 18, price: 14000, status: "scheduled",  date: "2026-03-25", vehicle: "Bus #PMT-021" },
-  { id: "TR-105", route: "Enugu → Abuja",         dep: "1:00 PM",  arr: "7:00 PM",  booked: 22, seats: 33, price: 11000, status: "scheduled",  date: "2026-03-25", vehicle: "Bus #PMT-033" },
-  { id: "TR-098", route: "Lagos → Enugu",         dep: "6:00 AM",  arr: "1:00 PM",  booked: 18, seats: 18, price: 9500,  status: "completed",  date: "2026-03-24", vehicle: "Bus #PMT-012" },
-  { id: "TR-097", route: "Abuja → Lagos",         dep: "7:00 AM",  arr: "1:30 PM",  booked: 17, seats: 18, price: 12000, status: "completed",  date: "2026-03-24", vehicle: "Bus #PMT-008" },
-];
-
-const VEHICLES = [
-  "Bus #PMT-008 (18 seats)",
-  "Bus #PMT-012 (18 seats)",
-  "Bus #PMT-021 (18 seats)",
-  "Bus #PMT-033 (33 seats)",
-  "Bus #PMT-045 (33 seats)",
-];
-
-const EMPTY_FORM = { from: "", to: "", date: "", dep: "", arr: "", vehicle: "", price: "", seats: "" };
-
-/** Convert "HH:MM" (from <input type="time">) → "h:mm AM/PM" */
-function fmtTime(hhmm) {
-  if (!hhmm) return hhmm;
-  const [hStr, mStr] = hhmm.split(":");
-  const h = parseInt(hStr, 10);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return `${h12}:${mStr} ${suffix}`;
+function deriveStatus(trip) {
+  if (trip.status === "cancelled") return "cancelled";
+  const dep = new Date(trip.departureTime);
+  const now = new Date();
+  const diffH = (dep - now) / 36e5;
+  if (diffH > 1)   return "scheduled";
+  if (diffH > -24) return "active";
+  return "completed";
 }
 
 export default function OperatorTripsPage() {
   const toast = useToastStore();
-  const [trips, setTrips] = useState(SEED_TRIPS);
-  const [filter, setFilter] = useState("all");
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [formError, setFormError] = useState("");
 
-  const filtered = trips.filter((t) => filter === "all" || t.status === filter);
+  const [trips, setTrips]             = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState("");
+  const [showModal, setShowModal]     = useState(false);
+  const [form, setForm]               = useState(EMPTY_FORM);
+  const [formError, setFormError]     = useState("");
+  const [formLoading, setFormLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [toggling, setToggling]           = useState(null);
+  const [fulling, setFulling]             = useState(null);
+  const [offlineInputs, setOfflineInputs] = useState({});
+  const [savingOffline, setSavingOffline] = useState(null);
 
-  function set(field) {
-    return (e) => setForm({ ...form, [field]: e.target.value });
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetchTrips();
+      setTrips(res.trips ?? []);
+    } catch {
+      setError("Failed to load trips. Please refresh.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  function openAdd() { setForm(EMPTY_FORM); setFormError(""); setShowModal(true); }
+
+  function validate() {
+    if (!form.from || !form.to || !form.departureTime || !form.price || !form.totalSeats) {
+      setFormError("Please fill in all required fields.");
+      return false;
+    }
+    if (form.from === form.to) { setFormError("Origin and destination cannot be the same."); return false; }
+    if (isNaN(parseInt(form.price)) || parseInt(form.price) < 1) {
+      setFormError("Enter a valid price.");
+      return false;
+    }
+    const seats = parseInt(form.totalSeats);
+    if (isNaN(seats) || seats < 1 || seats > 100) {
+      setFormError("Seat count must be between 1 and 100.");
+      return false;
+    }
+    return true;
   }
 
-  function handleAddTrip(e) {
+  async function handleCreate(e) {
     e.preventDefault();
     setFormError("");
-
-    if (!form.from || !form.to || !form.date || !form.dep || !form.arr || !form.vehicle || !form.price || !form.seats) {
-      setFormError("Please fill in all fields.");
-      return;
+    if (!validate()) return;
+    setFormLoading(true);
+    try {
+      const { trip } = await createTrip({
+        from:          form.from,
+        to:            form.to,
+        departureTime: form.departureTime,
+        arrivalTime:   form.arrivalTime || undefined,
+        price:         parseInt(form.price),
+        totalSeats:    parseInt(form.totalSeats),
+        vehicleType:   form.vehicleType,
+        driverNumber:  form.driverNumber || undefined,
+        parkName:      form.parkName || undefined,
+        amenities:     form.amenities,
+      });
+      setTrips((prev) => [trip, ...prev]);
+      setShowModal(false);
+      toast.success("Trip created successfully");
+    } catch (err) {
+      setFormError(
+        err?.error?.details?.[0]?.message ||
+        err?.error?.message ||
+        err?.message ||
+        "Failed to create trip."
+      );
+    } finally {
+      setFormLoading(false);
     }
-    if (form.from === form.to) {
-      setFormError("Origin and destination cannot be the same.");
-      return;
+  }
+
+  async function handleToggle(trip) {
+    setToggling(trip.id);
+    try {
+      const { trip: updated } = await toggleTripActive(trip.id, !trip.isActive);
+      setTrips((prev) => prev.map((t) => t.id === updated.id ? updated : t));
+      toast.success(updated.isActive ? "Trip is now online" : "Trip is now offline");
+    } catch (err) {
+      toast.error(err?.error?.message || "Failed to update trip availability.");
+    } finally {
+      setToggling(null);
     }
+  }
 
-    const seatsNum = parseInt(form.seats, 10);
-    const priceNum = parseInt(form.price, 10);
-    if (isNaN(seatsNum) || seatsNum < 1) { setFormError("Enter a valid seat count."); return; }
-    if (isNaN(priceNum) || priceNum < 100) { setFormError("Enter a valid price (min ₦100)."); return; }
+  async function handleMarkFull(trip) {
+    setFulling(trip.id);
+    try {
+      const { trip: updated } = await markTripFull(trip.id, !trip.isFull);
+      setTrips((prev) => prev.map((t) => t.id === updated.id ? updated : t));
+      toast.success(updated.isFull ? "Trip marked as full — no new bookings accepted" : "Trip reopened for booking");
+    } catch (err) {
+      toast.error(err?.error?.message || "Failed to update trip.");
+    } finally {
+      setFulling(null);
+    }
+  }
 
-    const newTrip = {
-      id: `TR-${String(trips.length + 100).padStart(3, "0")}`,
-      route: `${form.from} → ${form.to}`,
-      dep: fmtTime(form.dep),
-      arr: fmtTime(form.arr),
-      booked: 0,
-      seats: seatsNum,
-      price: priceNum,
-      status: "scheduled",
-      date: form.date,
-      vehicle: form.vehicle.split(" (")[0],
-    };
+  async function handleOfflineSave(trip) {
+    const raw = offlineInputs[trip.id];
+    const val = parseInt(raw ?? String(trip.offlineCount ?? 0), 10);
+    if (isNaN(val) || val < 0) return;
+    setSavingOffline(trip.id);
+    try {
+      const { trip: updated } = await setTripOfflineCount(trip.id, val);
+      setTrips((prev) => prev.map((t) => t.id === updated.id ? updated : t));
+      setOfflineInputs((prev) => { const n = { ...prev }; delete n[trip.id]; return n; });
+      toast.success("Offline bookings recorded");
+    } catch (err) {
+      toast.error(err?.error?.message || "Failed to save offline count.");
+    } finally {
+      setSavingOffline(null);
+    }
+  }
 
-    setTrips([newTrip, ...trips]);
-    setForm(EMPTY_FORM);
-    setShowModal(false);
-    toast.success("Trip created successfully");
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteTrip(deleteTarget.id);
+      setTrips((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+      toast.success("Trip deleted");
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(err?.error?.message || err?.message || "Failed to delete trip.");
+    } finally {
+      setDeleteLoading(false);
+    }
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFF]">
+    <div className="min-h-screen bg-[#F8FAFC]">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Trips</h1>
-            <p className="text-sm text-gray-500">{trips.length} total trips</p>
+            <h1 className="text-2xl font-bold text-[#0F172A]">My Trips</h1>
+            <p className="text-sm text-[#64748B]">{trips.length} trip{trips.length !== 1 ? "s" : ""} total</p>
           </div>
-          <Button onClick={() => setShowModal(true)}>+ Add New Trip</Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={load} loading={loading && trips.length > 0}>
+              Refresh
+            </Button>
+            <Button onClick={openAdd} variant="success" rightIcon={<Plus size={15} />}>
+              Add New Trip
+            </Button>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="mb-6 w-fit">
-          <FilterTabs
-            items={["all", "scheduled", "boarding", "in-transit", "completed", "cancelled"]}
-            active={filter}
-            onChange={setFilter}
-            color="green"
-            labels={{ "in-transit": "In Transit" }}
-          />
-        </div>
+        {error && (
+          <div className="mb-4 bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] rounded-xl px-4 py-3 text-sm">
+            {error}
+          </div>
+        )}
 
-        {/* Table */}
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-gray-400 font-semibold uppercase tracking-wider border-b border-gray-50">
-                  <th className="px-6 py-4">Trip ID</th>
-                  <th className="px-6 py-4">Route</th>
-                  <th className="px-6 py-4">Schedule</th>
-                  <th className="px-6 py-4">Vehicle</th>
-                  <th className="px-6 py-4">Seats</th>
-                  <th className="px-6 py-4">Price</th>
-                  <th className="px-6 py-4">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 font-mono text-xs text-gray-400">{t.id}</td>
-                    <td className="px-6 py-4">
-                      <p className="font-semibold text-gray-900">{t.route}</p>
-                      <p className="text-xs text-gray-400">{t.date}</p>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600 text-xs">{t.dep} → {t.arr}</td>
-                    <td className="px-6 py-4 text-gray-600 text-xs">{t.vehicle}</td>
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-gray-900">{t.booked}</span>
-                      <span className="text-gray-400">/{t.seats}</span>
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-green-600">₦{t.price.toLocaleString()}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_COLOR[t.status]}`}>
-                        {t.status === "in-transit" ? "In Transit" : capitalize(t.status)}
-                      </span>
-                    </td>
+        {loading && trips.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center">
+            <div className="animate-spin w-8 h-8 border-2 border-[#16A34A] border-t-transparent rounded-full mx-auto mb-3" />
+            <p className="text-sm text-[#94A3B8]">Loading trips…</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#F1F5F9]">
+                    {["Route", "Departure", "Price", "Seats", "Status", "Availability", "Capacity", "Actions"].map((h) => (
+                      <th key={h} className="px-6 py-4">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filtered.length === 0 && (
-            <div className="text-center py-16 text-gray-400">
-              <p className="text-4xl mb-3">🚌</p>
-              <p className="font-medium">No trips match this filter</p>
+                </thead>
+                <tbody className="divide-y divide-[#F1F5F9]">
+                  {trips.map((trip) => {
+                    const status = deriveStatus(trip);
+                    const booked = (trip.totalSeats ?? 0) - (trip.availableSeats ?? 0);
+                    return (
+                      <tr key={trip.id} className="hover:bg-[#F8FAFC] transition-colors">
+                        <td className="px-6 py-4">
+                          <p className="font-semibold text-[#0F172A]">{trip.from} → {trip.to}</p>
+                          <p className="text-xs text-[#94A3B8]">{trip.vehicleType}</p>
+                        </td>
+                        <td className="px-6 py-4 text-[#64748B] text-sm">{formatTime(trip.departureTime)}</td>
+                        <td className="px-6 py-4 font-semibold text-[#16A34A]">₦{trip.price.toLocaleString()}</td>
+                        <td className="px-6 py-4">
+                          <span className="font-semibold text-[#0F172A]">{booked}</span>
+                          <span className="text-[#94A3B8]">/{trip.totalSeats}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[status] ?? STATUS_BADGE.scheduled}`}>
+                            {capitalize(status)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleToggle(trip)}
+                              disabled={toggling === trip.id}
+                              title={trip.isActive !== false ? "Click to go offline" : "Click to go online"}
+                              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+                                trip.isActive !== false ? "bg-[#16A34A]" : "bg-[#94A3B8]"
+                              } ${toggling === trip.id ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                            >
+                              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                                trip.isActive !== false ? "translate-x-4.5" : "translate-x-0.5"
+                              }`} />
+                            </button>
+                            <span className={`text-xs font-medium ${trip.isActive !== false ? "text-[#16A34A]" : "text-[#94A3B8]"}`}>
+                              {toggling === trip.id ? "…" : trip.isActive !== false ? "Online" : "Offline"}
+                            </span>
+                          </div>
+                        </td>
+                        {/* Capacity: offline count + mark full */}
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1.5">
+                            {trip.isFull && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-[#FEF2F2] text-[#DC2626]">
+                                FULL
+                              </span>
+                            )}
+                            {/* Offline bookings inline input */}
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-[#94A3B8]">Walk-ins:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max={trip.totalSeats}
+                                value={offlineInputs[trip.id] ?? (trip.offlineCount ?? 0)}
+                                onChange={(e) => setOfflineInputs((prev) => ({ ...prev, [trip.id]: e.target.value }))}
+                                onKeyDown={(e) => e.key === "Enter" && handleOfflineSave(trip)}
+                                className="w-12 text-xs border border-[#E2E8F0] rounded px-1.5 py-0.5 text-[#0F172A] focus:outline-none focus:border-[#2563EB]"
+                              />
+                              {offlineInputs[trip.id] !== undefined && (
+                                <button
+                                  onClick={() => handleOfflineSave(trip)}
+                                  disabled={savingOffline === trip.id}
+                                  title="Save offline count"
+                                  className="text-[#16A34A] hover:text-[#15803D] disabled:opacity-40"
+                                >
+                                  <Check size={13} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1.5">
+                            <button
+                              onClick={() => handleMarkFull(trip)}
+                              disabled={fulling === trip.id}
+                              className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors disabled:opacity-40 ${
+                                trip.isFull
+                                  ? "bg-[#16A34A] text-white hover:bg-[#15803D]"
+                                  : "bg-[#FEF2F2] text-[#DC2626] hover:bg-[#FEE2E2]"
+                              }`}
+                            >
+                              {fulling === trip.id ? "…" : trip.isFull ? "Reopen" : "Mark Full"}
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(trip)}
+                              className="text-[#DC2626] hover:underline text-xs font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
+
+            {trips.length === 0 && !loading && (
+              <div className="text-center py-16">
+                <div className="w-12 h-12 bg-[#F1F5F9] rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Bus size={24} className="text-[#94A3B8]" />
+                </div>
+                <p className="text-sm font-medium text-[#94A3B8]">No trips yet — add your first trip above</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Add Trip Modal */}
       <Modal isOpen={showModal} onClose={() => { setShowModal(false); setFormError(""); }} title="Add New Trip" size="lg">
-        <form onSubmit={handleAddTrip} className="space-y-5">
-          {/* Route */}
+        <form onSubmit={handleCreate} className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
-            <Select label="Origin" required value={form.from} onChange={set("from")}>
+            <Select label="From" required value={form.from} onChange={set("from")}>
               <option value="">Select city</option>
               {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </Select>
-            <Select label="Destination" required value={form.to} onChange={set("to")}>
+            <Select label="To" required value={form.to} onChange={set("to")}>
               <option value="">Select city</option>
               {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </Select>
           </div>
-
-          {/* Date & times */}
-          <div className="grid sm:grid-cols-3 gap-4">
-            <Input label="Date" type="date" required value={form.date} onChange={set("date")} />
-            <Input label="Departure Time" type="time" required value={form.dep} onChange={set("dep")} />
-            <Input label="Arrival Time" type="time" required value={form.arr} onChange={set("arr")} />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Input label="Departure" type="datetime-local" required value={form.departureTime} onChange={set("departureTime")} />
+            <Input label="Arrival (optional)" type="datetime-local" value={form.arrivalTime} onChange={set("arrivalTime")} />
           </div>
-
-          {/* Vehicle, seats, price */}
           <div className="grid sm:grid-cols-3 gap-4">
-            <Select label="Vehicle" required value={form.vehicle} onChange={set("vehicle")}>
-              <option value="">Select vehicle</option>
-              {VEHICLES.map((v) => <option key={v} value={v}>{v}</option>)}
+            <Input label="Price (₦)" type="number" placeholder="9500" required value={form.price} onChange={set("price")} />
+            <Input label="Total Seats" type="number" placeholder="18" min="1" max="100" required value={form.totalSeats} onChange={set("totalSeats")} />
+            <Select label="Vehicle Type" value={form.vehicleType} onChange={set("vehicleType")}>
+              {VEHICLE_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
             </Select>
-            <Input label="Available Seats" type="number" min="1" max="60" required value={form.seats} onChange={set("seats")} placeholder="e.g. 18" />
-            <Input label="Price (₦)" type="number" min="100" required value={form.price} onChange={set("price")} placeholder="e.g. 12000" />
+          </div>
+          <Input label="Driver Phone (optional)" placeholder="+234 800 000 0000" value={form.driverNumber} onChange={set("driverNumber")} />
+          <Input
+            label="Bus Park / Terminal (optional)"
+            placeholder="e.g. Ojota Motor Park, Lagos"
+            value={form.parkName}
+            onChange={set("parkName")}
+          />
+
+          {/* Amenities checkbox grid */}
+          <div>
+            <label className="block text-sm font-medium text-[#374151] mb-2">
+              Bus Amenities <span className="text-[#94A3B8] font-normal">(select all that apply)</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {BUS_AMENITIES.map((amenity) => {
+                const checked = form.amenities.includes(amenity);
+                return (
+                  <label
+                    key={amenity}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 cursor-pointer transition-colors text-sm ${
+                      checked
+                        ? "border-[#16A34A] bg-[#F0FDF4] text-[#15803D]"
+                        : "border-[#E2E8F0] text-[#64748B] hover:border-[#BBF7D0] hover:bg-[#F8FAFC]"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={checked}
+                      onChange={() => {
+                        setForm((f) => ({
+                          ...f,
+                          amenities: checked
+                            ? f.amenities.filter((a) => a !== amenity)
+                            : [...f.amenities, amenity],
+                        }));
+                      }}
+                    />
+                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${
+                      checked ? "bg-[#16A34A] border-[#16A34A]" : "border-[#CBD5E1]"
+                    }`}>
+                      {checked && <Check size={10} className="text-white" />}
+                    </span>
+                    <span className="font-medium leading-tight">{amenity}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           {formError && (
-            <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-2.5">{formError}</p>
+            <p className="text-sm text-[#DC2626] bg-[#FEF2F2] rounded-xl px-4 py-2.5">{formError}</p>
           )}
-
           <div className="flex gap-3 justify-end pt-2">
             <Button variant="secondary" type="button" onClick={() => { setShowModal(false); setFormError(""); }}>
               Cancel
             </Button>
-            <Button type="submit" variant="success">
+            <Button type="submit" variant="success" loading={formLoading}>
               Create Trip
             </Button>
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        loading={deleteLoading}
+        title="Delete Trip"
+        message={`Delete the trip ${deleteTarget?.from} → ${deleteTarget?.to}? All ${deleteTarget?.totalSeats} seats will be permanently removed.`}
+        confirmLabel="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

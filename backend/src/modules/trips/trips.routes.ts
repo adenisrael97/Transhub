@@ -11,12 +11,15 @@
 import { Router } from "express";
 import { authenticate } from "../../middleware/authenticate";
 import { requireRole } from "../../middleware/rbac";
-import { validateBody, validateQuery } from "../../middleware/validate";
+import { validateBody, validateQuery, validateId } from "../../middleware/validate";
 import { tripsController } from "./trips.controller";
 import {
   createTripSchema,
   searchTripsQuerySchema,
   listTripsQuerySchema,
+  toggleTripSchema,
+  markFullSchema,
+  setOfflineCountSchema,
 } from "./trips.schema";
 
 export const tripsRouter = Router();
@@ -26,6 +29,14 @@ tripsRouter.get(
   "/search",
   validateQuery(searchTripsQuerySchema),
   tripsController.search
+);
+
+// Driver: list own trips (matched by phone → driverNumber)
+tripsRouter.get(
+  "/mine",
+  authenticate,
+  requireRole("driver"),
+  tripsController.driverTrips
 );
 
 // Operator: create a trip (operatorId from JWT, not body)
@@ -46,12 +57,52 @@ tripsRouter.get(
   tripsController.list
 );
 
+// Operator: toggle trip online/offline (before /:id so /:id/active isn't ambiguous)
+tripsRouter.patch(
+  "/:id/active",
+  validateId,
+  authenticate,
+  requireRole("operator"),
+  validateBody(toggleTripSchema),
+  tripsController.toggleActive
+);
+
+// Operator + Admin: manually mark a trip full or reopen it
+tripsRouter.patch(
+  "/:id/fill",
+  validateId,
+  authenticate,
+  requireRole("operator", "admin"),
+  validateBody(markFullSchema),
+  tripsController.markFull
+);
+
+// Operator + Admin: set the offline (walk-in) booking count
+tripsRouter.patch(
+  "/:id/offline",
+  validateId,
+  authenticate,
+  requireRole("operator", "admin"),
+  validateBody(setOfflineCountSchema),
+  tripsController.setOfflineCount
+);
+
+// Operator + Driver + Admin: passenger list for a trip (before /:id)
+tripsRouter.get(
+  "/:id/passengers",
+  validateId,
+  authenticate,
+  requireRole("operator", "driver", "admin"),
+  tripsController.getTripPassengers
+);
+
 // Public — no auth (AFTER /search and / to prevent wildcard shadowing)
-tripsRouter.get("/:id", tripsController.getById);
+tripsRouter.get("/:id", validateId, tripsController.getById);
 
 // Operator: delete own trip
 tripsRouter.delete(
   "/:id",
+  validateId,
   authenticate,
   requireRole("operator"),
   tripsController.remove

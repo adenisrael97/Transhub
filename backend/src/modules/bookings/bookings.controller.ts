@@ -16,10 +16,13 @@ export const bookingsController = {
 
   async list(req: Request, res: Response): Promise<void> {
     if (!req.user) throw new UnauthorizedError();
-    // Re-parse: validateQuery guards but can't write back to Express 5's
-    // getter-only req.query, so coercion/defaults aren't applied there.
     const pagination = paginationQuerySchema.parse(req.query);
-    const result = await bookingsService.list(req.user.id, req.user.role, pagination);
+    const result = await bookingsService.list(
+      req.user.id,
+      req.user.role,
+      pagination,
+      req.user.operatorId ?? null
+    );
     res.json(result);
   },
 

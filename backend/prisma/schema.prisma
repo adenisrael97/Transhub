@@ -106,7 +106,12 @@ model Trip {
   totalSeats    Int
   vehicleType   String
   driverNumber  String?
+  parkName      String?    // bus terminal / park the journey departs from
+  amenities     String[]   // features offered on the bus (AC, WiFi, etc.)
   status        TripStatus @default(scheduled)
+  isActive      Boolean    @default(true)
+  isFull        Boolean    @default(false)   // manual "marked full" override by operator/driver
+  offlineCount  Int        @default(0)       // walk-in seats recorded offline at the bus park
   operatorId    String
   operator      Operator   @relation(fields: [operatorId], references: [id])
   seats         Seat[]
@@ -115,6 +120,10 @@ model Trip {
   updatedAt     DateTime   @updatedAt
 
   @@index([from, to, departureTime])
+  // Operator dashboard ("my trips") + the operatorId FK join. Postgres does NOT
+  // auto-index FK columns, so without this every operator-scoped list/delete and
+  // the analytics operator join falls back to a sequential scan of all trips.
+  @@index([operatorId])
   @@map("trips")
 }
 
@@ -131,32 +140,48 @@ model Seat {
   // The DB-side source of truth for the sweeper that reclaims orphaned holds
   // (e.g. if the per-hold BullMQ expiry job was never enqueued or Redis was lost).
   heldUntil DateTime?
+  // WHO holds this seat. Durable, transactional source of truth for hold
+  // ownership — Redis (seat_hold:*) is only a fast-path cache. Persisting this
+  // means a transient Redis failure during hold can't lock a user out of seats
+  // they legitimately hold: payment init verifies ownership against this column.
+  // Set on hold, cleared (null) on confirm and on sweeper release.
+  heldBy    String?
   booking BookedSeat?
 
   @@unique([tripId, label])
   // Supports the sweeper's `WHERE status='held' AND heldUntil < now()` scan.
   @@index([status, heldUntil])
+  // Critical: seat availability count (`WHERE tripId=X AND status='available'`).
+  // Hit on every /trips/:id page load and on hold validation.
+  @@index([tripId, status])
   @@map("seats")
 }
 
 // A confirmed booking — one per checkout session.
 // paymentRef is unique: webhook idempotency — same Paystack reference can't create two bookings.
 model Booking {
-  id          String        @id @default(uuid())
+  id          String          @id @default(uuid())
   userId      String
-  user        User          @relation(fields: [userId], references: [id])
+  user        User            @relation(fields: [userId], references: [id])
   tripId      String
-  trip        Trip          @relation(fields: [tripId], references: [id])
+  trip        Trip            @relation(fields: [tripId], references: [id])
   seats       BookedSeat[]
-  status      BookingStatus @default(pending)
-  totalAmount Int           // naira, sum of seats × price
-  paymentRef  String?       @unique
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  passengers  PassengerInfo[]
+  status      BookingStatus   @default(pending)
+  totalAmount Int             // naira, sum of seats × price
+  paymentRef  String?         @unique
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   // Supports analytics aggregates (status equality + createdAt range/grouping)
   // and any status-filtered booking lookup.
   @@index([status, createdAt])
+  // Passenger "my bookings" list — most common read path after checkout.
+  @@index([userId])
+  // Trip-level booking queries (e.g. admin view, cancellation sweep).
+  @@index([tripId])
+  // Webhook idempotency lookup — paymentRef is already @unique (index implied),
+  // but the explicit declaration makes the intent clear for future readers.
   @@map("bookings")
 }
 
@@ -170,5 +195,28 @@ model BookedSeat {
   seatId    String  @unique
   seat      Seat    @relation(fields: [seatId], references: [id])
 
+  // Every booking/ticket read joins booked_seats by bookingId (Booking.seats
+  // include). Unindexed FK → sequential scan that grows with total bookings.
+  @@index([bookingId])
   @@map("booked_seats")
+}
+
+// Passenger details collected at checkout for each seat in a booking.
+// Stored separately from User to support guest-booked seats (future) and
+// to hold next-of-kin / special-needs info that belongs to the journey,
+// not the account.
+model PassengerInfo {
+  id             String   @id @default(uuid())
+  bookingId      String
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  fullName       String
+  phone          String
+  email          String?
+  nextOfKinName  String
+  nextOfKinPhone String
+  specialNeeds   String?
+  createdAt      DateTime @default(now())
+
+  @@index([bookingId])
+  @@map("passenger_info")
 }

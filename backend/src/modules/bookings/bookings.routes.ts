@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../../middleware/authenticate";
 import { requireRole } from "../../middleware/rbac";
-import { validateBody, validateQuery } from "../../middleware/validate";
+import { validateBody, validateQuery, validateId } from "../../middleware/validate";
 import { paginationQuerySchema } from "../../shared/pagination";
 import { holdSchema } from "./bookings.schema";
 import { bookingsController } from "./bookings.controller";
@@ -22,11 +22,11 @@ bookingsRouter.post(
 // recomputed from the DB) — see payments.handleWebhook → bookingsService.confirm.
 // Exposing confirm to clients would let a passenger book seats without paying.
 
-// List own bookings (passenger) or all (admin) — paginated via ?page=&limit=
+// List bookings — passenger sees own, admin sees all, operator sees their trips
 bookingsRouter.get(
   "/",
   authenticate,
-  requireRole("passenger", "admin"),
+  requireRole("passenger", "admin", "operator"),
   validateQuery(paginationQuerySchema),
   bookingsController.list
 );
@@ -34,6 +34,7 @@ bookingsRouter.get(
 // Booking detail — owner or admin
 bookingsRouter.get(
   "/:id",
+  validateId,
   authenticate,
   requireRole("passenger", "admin"),
   bookingsController.getById

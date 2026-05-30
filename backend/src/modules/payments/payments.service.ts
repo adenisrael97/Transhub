@@ -18,8 +18,8 @@
  *   - Webhooks rejected without a valid HMAC-SHA512 signature
  */
 import crypto from "crypto";
-import { redis } from "../../infra/redis/client";
 import { env } from "../../config/env";
+import { redis } from "../../infra/redis/client";
 import { logger } from "../../infra/logger";
 import {
   UnauthorizedError,
@@ -30,7 +30,7 @@ import {
 import { bookingsService } from "../bookings";
 import { usersService }    from "../users";
 import { paymentsRepository } from "./payments.repository";
-import { webhookBodySchema, type InitializeInput } from "./payments.schema";
+import { webhookBodySchema, type InitializeInput, type PassengerInfoInput } from "./payments.schema";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -104,16 +104,16 @@ export const paymentsService = {
    * else holds or that were never held.
    */
   async initialize(userId: string, input: InitializeInput): Promise<{ authorizationUrl: string; reference: string }> {
-    const { tripId, seatIds } = input;
+    const { tripId, passengers } = input;
 
-    // Verify each seat is held by this user
-    const pipeline = redis.pipeline();
-    for (const seatId of seatIds) {
-      pipeline.get(`seat_hold:${tripId}:${seatId}`);
-    }
-    const holdResults = await pipeline.exec();
-    const allHeld = holdResults?.every((r) => r[1] === userId) ?? false;
-    if (!allHeld) {
+    // Resolve the seats this user holds against the DB (authoritative), NOT Redis.
+    // The hold phase persists ownership in seats.heldBy inside a transaction; Redis
+    // hold keys are only a best-effort cache. Reading the DB here means a Redis blip
+    // during the hold can't wrongly reject a user paying for seats they legitimately
+    // hold. This server-resolved set — never a client-supplied one — drives both the
+    // charged amount and the webhook metadata, so the client can't tamper with either.
+    const seatIds = await bookingsService.getHeldSeatIds(tripId, userId);
+    if (seatIds.length === 0) {
       throw new ConflictError("Seat hold not found or expired — please select seats again");
     }
 
@@ -126,6 +126,19 @@ export const paymentsService = {
 
     const amountKobo = seatIds.length * price * 100;
     const reference  = generateRef();
+
+    // Store passenger PII in Redis keyed by reference (2 h TTL — well beyond
+    // any plausible payment completion window). NOT in Paystack metadata:
+    // metadata has a size cap and embedding PII in a third-party payload is
+    // a compliance risk. The webhook handler reads this key to persist rows.
+    await redis.set(
+      `pax:${reference}`,
+      JSON.stringify(passengers),
+      "EX",
+      7200
+    ).catch((err) => {
+      logger.warn({ err }, "Failed to cache passenger info in Redis — passengers will not be persisted");
+    });
 
     const result = await paystackPost("/transaction/initialize", {
       email:     user.email,
@@ -195,6 +208,17 @@ export const paymentsService = {
     }
     const { tripId, seatIds, userId } = data.metadata;
 
+    // Read passenger info that was cached on payment initialization.
+    // Gracefully degrade if Redis lost the key (TTL expired, restart, etc.) —
+    // the booking is still confirmed, just without passenger details.
+    let passengers: PassengerInfoInput[] | undefined;
+    try {
+      const paxJson = await redis.get(`pax:${data.reference}`);
+      if (paxJson) passengers = JSON.parse(paxJson) as PassengerInfoInput[];
+    } catch (err) {
+      logger.warn({ err }, "Could not read passenger info from Redis — booking confirmed without passenger details");
+    }
+
     // 6. Amount verification — NEVER trust the webhook amount; recalculate from DB
     const price = await paymentsRepository.findTripPrice(tripId);
     if (price === null) {
@@ -218,7 +242,7 @@ export const paymentsService = {
     //    treated as transient (e.g. DB blip): rethrow so Paystack retries.
     //    (Reference is intentionally NOT logged — see security rules.)
     try {
-      await bookingsService.confirm({ paymentRef: data.reference, tripId, seatIds }, userId);
+      await bookingsService.confirm({ paymentRef: data.reference, tripId, seatIds, passengers }, userId);
     } catch (err) {
       if (err instanceof ConflictError) {
         logger.error(
