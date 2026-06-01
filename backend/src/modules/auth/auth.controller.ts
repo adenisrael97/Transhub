@@ -18,9 +18,15 @@ export const authController = {
     res.status(200).json(result);
   },
 
+  async driverLogin(req: Request, res: Response): Promise<void> {
+    const result = await authService.driverLogin(req.body);
+    res.status(200).json(result);
+  },
+
   async me(req: Request, res: Response): Promise<void> {
     if (!req.user) throw new UnauthorizedError();
-    const user = await authService.me(req.user.id);
+    // Pass role so the service can route to the correct table (drivers vs users).
+    const user = await authService.me(req.user.id, req.user.role);
     res.json({ user });
   },
 };

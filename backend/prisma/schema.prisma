@@ -62,6 +62,8 @@ model User {
   operatorId String?   @unique
   operator   Operator? @relation(fields: [operatorId], references: [id])
   bookings   Booking[]
+  charters   Charter[]
+  waybills   Waybill[]
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
@@ -90,8 +92,50 @@ model Operator {
   // Back-references
   user             User?
   trips            Trip[]
+  vehicles         Vehicle[]
+  drivers          Driver[]
 
   @@map("operators")
+}
+
+// A driver employed by an operator. Created by the operator, never self-registered.
+// Drivers authenticate with phone + password only (no email required).
+// A driver's phone is globally unique so the JWT claim is unambiguous.
+model Driver {
+  id         String   @id @default(uuid())
+  operatorId String
+  operator   Operator @relation(fields: [operatorId], references: [id])
+  fullName   String
+  phone      String   @unique
+  password   String   // argon2id hash — never returned to clients
+  licenseNo  String?
+  isActive   Boolean  @default(true)
+  trips      Trip[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([operatorId])
+  @@index([phone])
+  @@map("drivers")
+}
+
+// A physical vehicle owned by an operator.
+// Never hard-deleted — softDelete sets active=false.
+model Vehicle {
+  id         String   @id @default(uuid())
+  operatorId String
+  operator   Operator @relation(fields: [operatorId], references: [id])
+  plate      String   @unique
+  make       String
+  model      String
+  capacity   Int
+  type       String   // 'bus' | 'minibus' | 'coaster' | 'van'
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([operatorId])
+  @@map("vehicles")
 }
 
 // A scheduled bus journey offered by an operator.
@@ -105,7 +149,10 @@ model Trip {
   price         Int        // price per seat in naira
   totalSeats    Int
   vehicleType   String
-  driverNumber  String?
+  // FK to Driver. Nullable — a trip may be created before a driver is assigned.
+  // SetNull on delete so removing a driver doesn't cascade-delete trips.
+  driverId      String?
+  driver        Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
   parkName      String?    // bus terminal / park the journey departs from
   amenities     String[]   // features offered on the bus (AC, WiFi, etc.)
   status        TripStatus @default(scheduled)
@@ -116,6 +163,7 @@ model Trip {
   operator      Operator   @relation(fields: [operatorId], references: [id])
   seats         Seat[]
   bookings      Booking[]
+  waybills      Waybill[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
@@ -219,4 +267,76 @@ model PassengerInfo {
 
   @@index([bookingId])
   @@map("passenger_info")
+}
+
+// A charter request: a passenger hires an entire vehicle for a private journey.
+// Flow: pending → quoted (admin sets price) → payment_pending → confirmed | cancelled.
+model Charter {
+  id             String    @id @default(uuid())
+  passengerId    String
+  passenger      User      @relation(fields: [passengerId], references: [id])
+  vehicleType    String    // e.g. 'bus-33', 'coaster', 'suv' — whatever the UI sends
+  fromLocation   String
+  toLocation     String
+  departureAt    DateTime
+  returnAt       DateTime? // null = one-way
+  passengerCount Int
+  notes          String?   // purpose / special instructions
+  // Contact person for this charter (may differ from account holder)
+  contactName    String?
+  contactPhone   String?
+  contactEmail   String?
+  status         String    @default("pending")
+  // pending | quoted | payment_pending | confirmed | cancelled
+  quotedPrice    Decimal?  @db.Decimal(12, 2)
+  paymentRef     String?   @unique // Paystack reference — unique for idempotency
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([passengerId])
+  @@index([status])
+  @@map("charters")
+}
+
+model Waybill {
+  id             String         @id @default(uuid())
+  waybillNo      String         @unique
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  tripId         String?
+  trip           Trip?          @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  senderName     String
+  senderPhone    String
+  recipientName  String
+  recipientPhone String
+  fromLocation   String
+  toLocation     String
+  description    String
+  weightKg       Decimal?       @db.Decimal(8, 2)
+  declaredValue  Decimal?       @db.Decimal(12, 2)
+  fee            Decimal        @db.Decimal(12, 2)
+  status         String         @default("pending")
+  paymentRef     String?
+  paidAt         DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  events         WaybillEvent[]
+
+  @@index([waybillNo])
+  @@index([status])
+  @@map("waybills")
+}
+
+model WaybillEvent {
+  id        String   @id @default(uuid())
+  waybillId String
+  waybill   Waybill  @relation(fields: [waybillId], references: [id], onDelete: Cascade)
+  status    String
+  location  String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([waybillId])
+  @@map("waybill_events")
 }

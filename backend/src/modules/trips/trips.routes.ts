@@ -67,22 +67,22 @@ tripsRouter.patch(
   tripsController.toggleActive
 );
 
-// Operator + Admin: manually mark a trip full or reopen it
+// Operator + Admin + Driver: manually mark a trip full or reopen it
 tripsRouter.patch(
   "/:id/fill",
   validateId,
   authenticate,
-  requireRole("operator", "admin"),
+  requireRole("operator", "admin", "driver"),
   validateBody(markFullSchema),
   tripsController.markFull
 );
 
-// Operator + Admin: set the offline (walk-in) booking count
+// Operator + Admin + Driver: set the offline (walk-in) booking count
 tripsRouter.patch(
   "/:id/offline",
   validateId,
   authenticate,
-  requireRole("operator", "admin"),
+  requireRole("operator", "admin", "driver"),
   validateBody(setOfflineCountSchema),
   tripsController.setOfflineCount
 );

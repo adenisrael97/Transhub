@@ -8,7 +8,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { STATUS_BADGE, CITIES } from "@/lib/constants";
 import { capitalize, formatTime } from "@/lib/utils";
 import useToastStore from "@/store/toastStore";
-import { fetchTrips, createTrip, deleteTrip, toggleTripActive, markTripFull, setTripOfflineCount } from "@/services/trips";
+import { fetchTrips, createTrip, deleteTrip, toggleTripActive, markTripFull, setTripOfflineCount, fetchOperatorDrivers } from "@/services/trips";
 
 const VEHICLE_TYPES = ["Bus", "Luxury Bus", "Coaster", "Car", "SUV"];
 
@@ -20,7 +20,7 @@ const BUS_AMENITIES = [
 
 const EMPTY_FORM = {
   from: "", to: "", departureTime: "", arrivalTime: "",
-  price: "", totalSeats: "", vehicleType: "Bus", driverNumber: "",
+  price: "", totalSeats: "", vehicleType: "Bus", driverId: "",
   parkName: "", amenities: [],
 };
 
@@ -50,6 +50,7 @@ export default function OperatorTripsPage() {
   const [fulling, setFulling]             = useState(null);
   const [offlineInputs, setOfflineInputs] = useState({});
   const [savingOffline, setSavingOffline] = useState(null);
+  const [drivers, setDrivers]             = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,6 +66,11 @@ export default function OperatorTripsPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    fetchOperatorDrivers()
+      .then((r) => setDrivers(r.drivers ?? []))
+      .catch(() => {});
+  }, []);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -102,7 +108,7 @@ export default function OperatorTripsPage() {
         price:         parseInt(form.price),
         totalSeats:    parseInt(form.totalSeats),
         vehicleType:   form.vehicleType,
-        driverNumber:  form.driverNumber || undefined,
+        driverId:      form.driverId || undefined,
         parkName:      form.parkName || undefined,
         amenities:     form.amenities,
       });
@@ -355,7 +361,12 @@ export default function OperatorTripsPage() {
               {VEHICLE_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
             </Select>
           </div>
-          <Input label="Driver Phone (optional)" placeholder="+234 800 000 0000" value={form.driverNumber} onChange={set("driverNumber")} />
+          <Select label="Assign Driver (optional)" value={form.driverId} onChange={set("driverId")}>
+            <option value="">— No driver assigned —</option>
+            {drivers.filter((d) => d.isActive).map((d) => (
+              <option key={d.id} value={d.id}>{d.fullName} ({d.phone})</option>
+            ))}
+          </Select>
           <Input
             label="Bus Park / Terminal (optional)"
             placeholder="e.g. Ojota Motor Park, Lagos"

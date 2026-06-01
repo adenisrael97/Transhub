@@ -10,10 +10,11 @@ export type Role = "passenger" | "operator" | "admin" | "driver";
 /** The authenticated identity carried in the JWT and attached to req.user. */
 export interface AuthUser {
   id: string;
-  email: string;
+  /** Absent for role === "driver" — drivers authenticate by phone only. */
+  email?: string;
   fullName: string;
   phone: string;
   role: Role;
-  /** Present only when role === "operator". Links to the Operator record. */
+  /** Present for role === "operator" and role === "driver". */
   operatorId?: string;
 }

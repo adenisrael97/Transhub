@@ -29,7 +29,7 @@ export const createTripSchema = z
     price:         z.number().int().positive("Price must be a positive integer (naira)"),
     totalSeats:    z.number().int().min(1).max(100, "Max 100 seats per trip"),
     vehicleType:   z.enum(["Bus", "Luxury Bus", "Coaster", "Car", "SUV"]),
-    driverNumber:  z.string().optional(),
+    driverId:      z.uuid("driverId must be a valid UUID").optional(),
     parkName:      z.string().trim().max(100).optional(),
     amenities:     z.array(z.string().trim()).max(15).optional().default([]),
   })
@@ -73,6 +73,8 @@ export const searchTripsQuerySchema = z.object({
 
 export const listTripsQuerySchema = z.object({
   operatorId: z.uuid().optional(),
+  /** Admin: partial city-name search across `from` and `to` (case-insensitive). */
+  search:     z.string().trim().max(100).optional(),
   ...paginationQuerySchema.shape,
 });
 

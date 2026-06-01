@@ -54,26 +54,24 @@ export const tripsController = {
   async list(req: Request, res: Response): Promise<void> {
     // Re-parse: validateQuery guards but can't write back to the getter-only
     // Express 5 req.query, so coercion/defaults aren't applied there.
-    const { operatorId: queryOperatorId, page, limit } = listTripsQuerySchema.parse(req.query);
+    const { operatorId: queryOperatorId, page, limit, search } = listTripsQuerySchema.parse(req.query);
 
     let operatorId = queryOperatorId;
     if (req.user!.role === "operator") {
       operatorId = req.user!.operatorId;
       if (!operatorId) {
-        // Guard against a malformed operator token falling through to an
-        // unfiltered query that would expose every operator's trips.
         throw new ForbiddenError("Your account is not linked to an operator profile");
       }
     }
-    const result = await tripsService.list({ operatorId }, { page, limit });
+    const result = await tripsService.list({ operatorId, search }, { page, limit });
     res.json(result);
   },
 
-  /** GET /trips/mine — driver only. Returns trips assigned to this driver (by phone). */
+  /** GET /trips/mine — driver only. Returns trips assigned to this driver (by Driver.id FK). */
   async driverTrips(req: Request, res: Response): Promise<void> {
-    const phone = req.user?.phone;
-    if (!phone) throw new ForbiddenError("Driver account has no phone number");
-    const trips = await tripsService.listByDriver(phone);
+    const driverId = req.user?.id;
+    if (!driverId) throw new ForbiddenError("Driver account ID not found");
+    const trips = await tripsService.listByDriver(driverId);
     res.json({ trips });
   },
 
@@ -98,27 +96,34 @@ export const tripsController = {
     res.status(204).send();
   },
 
-  /** PATCH /trips/:id/fill — operator or admin. Marks a trip full or reopens it. */
+  /** PATCH /trips/:id/fill — operator, admin, or driver. Marks a trip full or reopens it. */
   async markFull(req: Request<IdParam>, res: Response): Promise<void> {
-    const role = req.user!.role;
+    const role       = req.user!.role;
     const operatorId = req.user?.operatorId;
-    if (role !== "admin" && !operatorId) {
+    // driverId is req.user.id when the caller is a driver (drivers table PK in JWT)
+    const driverId   = role === "driver" ? req.user!.id : undefined;
+
+    if (role !== "admin" && role !== "driver" && !operatorId) {
       throw new ForbiddenError("Your account is not linked to an operator profile");
     }
+
     const { isFull } = req.body as MarkFullInput;
-    const trip = await tripsService.markFull(req.params.id, operatorId ?? undefined, role, isFull);
+    const trip = await tripsService.markFull(req.params.id, operatorId, role, isFull, driverId);
     res.json({ trip });
   },
 
-  /** PATCH /trips/:id/offline — operator or admin. Sets the offline (walk-in) booking count. */
+  /** PATCH /trips/:id/offline — operator, admin, or driver. Sets the offline (walk-in) count. */
   async setOfflineCount(req: Request<IdParam>, res: Response): Promise<void> {
-    const role = req.user!.role;
+    const role       = req.user!.role;
     const operatorId = req.user?.operatorId;
-    if (role !== "admin" && !operatorId) {
+    const driverId   = role === "driver" ? req.user!.id : undefined;
+
+    if (role !== "admin" && role !== "driver" && !operatorId) {
       throw new ForbiddenError("Your account is not linked to an operator profile");
     }
+
     const { offlineCount } = req.body as SetOfflineCountInput;
-    const trip = await tripsService.setOfflineCount(req.params.id, operatorId ?? undefined, role, offlineCount);
+    const trip = await tripsService.setOfflineCount(req.params.id, operatorId, role, offlineCount, driverId);
     res.json({ trip });
   },
 
@@ -128,8 +133,7 @@ export const tripsController = {
     const passengers = await bookingsService.getPassengersByTripId(
       req.params.id,
       req.user.id,
-      req.user.role,
-      req.user.phone
+      req.user.role
     );
     res.json({ passengers });
   },

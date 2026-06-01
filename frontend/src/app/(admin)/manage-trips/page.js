@@ -1,243 +1,314 @@
 "use client";
-import { useState } from "react";
-import Button from "@/components/ui/Button";
-import Modal from "@/components/ui/Modal";
-import Input, { Select } from "@/components/ui/Input";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { STATUS_BADGE, CITIES } from "@/lib/constants";
-import { capitalize } from "@/lib/utils";
-import useToastStore from "@/store/toastStore";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from "lucide-react";
+import { STATUS_BADGE } from "@/lib/constants";
+import { capitalize, formatTime } from "@/lib/utils";
+import { fetchTrips } from "@/services/trips";
 
-const OPERATORS = ["Peace Mass Transit", "GUO Transport", "ABC Transport", "Chisco Transport", "God is Good Motors"];
-const EMPTY_FORM = { from: "", to: "", dep: "", operator: "", price: "", seats: "", vehicle: "Bus" };
+const PAGE_SIZES = [20, 50, 100];
 
-const MOCK_TRIPS = [
-  { id: "1", from: "Lagos", to: "Abuja",          dep: "2026-03-26 06:00", operator: "Peace Mass Transit", price: 9500,  seats: 18, booked: 14, status: "active"    },
-  { id: "2", from: "Abuja", to: "Port Harcourt",  dep: "2026-03-26 08:00", operator: "GUO Transport",     price: 12000, seats: 33, booked: 20, status: "active"    },
-  { id: "3", from: "Lagos", to: "Enugu",           dep: "2026-03-25 05:00", operator: "ABC Transport",    price: 11000, seats: 18, booked: 18, status: "completed" },
-  { id: "4", from: "Kano",  to: "Lagos",           dep: "2026-03-27 07:00", operator: "Peace Mass Transit",price: 15000, seats: 33, booked: 0,  status: "scheduled" },
-];
+function deriveStatus(trip) {
+  if (trip.status === "cancelled") return "cancelled";
+  const dep = new Date(trip.departureTime);
+  const diffH = (dep - Date.now()) / 36e5;
+  if (diffH > 1)   return "scheduled";
+  if (diffH > -24) return "active";
+  return "completed";
+}
+
+/** Compact page number list with ellipsis. E.g. [1] … [4][5][6] … [12] */
+function pageRange(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [];
+  pages.push(1);
+  if (current > 4) pages.push("…");
+  const lo = Math.max(2, current - 2);
+  const hi = Math.min(total - 1, current + 2);
+  for (let p = lo; p <= hi; p++) pages.push(p);
+  if (current < total - 3) pages.push("…");
+  pages.push(total);
+  return pages;
+}
 
 export default function AdminTripsPage() {
-  const toast = useToastStore();
-  const [trips, setTrips] = useState(MOCK_TRIPS);
-  const [showModal, setShowModal] = useState(false);
-  const [editTrip, setEditTrip] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [formError, setFormError] = useState("");
-  const [search, setSearch] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [trips,      setTrips]      = useState([]);
+  const [meta,       setMeta]       = useState(null);  // { page, limit, total, totalPages }
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState("");
+  const [page,       setPage]       = useState(1);
+  const [limit,      setLimit]      = useState(20);
+  const [search,     setSearch]     = useState("");
+  const [inputValue, setInputValue] = useState("");
+  const debounceRef = useRef(null);
 
-  const filtered = trips.filter(
-    (t) => t.from.toLowerCase().includes(search.toLowerCase()) || t.to.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-
-  function openAdd() {
-    setForm(EMPTY_FORM);
-    setFormError("");
-    setShowModal(true);
-  }
-
-  function openEdit(trip) {
-    setEditTrip(trip);
-    setForm({ from: trip.from, to: trip.to, dep: trip.dep, operator: trip.operator, price: String(trip.price), seats: String(trip.seats), vehicle: "Bus" });
-    setFormError("");
-  }
-
-  function handleAddTrip(e) {
-    e.preventDefault();
-    setFormError("");
-    if (!form.from || !form.to || !form.dep || !form.operator || !form.price || !form.seats) {
-      setFormError("Please fill in all required fields.");
-      return;
+  const load = useCallback(async (p, l, s) => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetchTrips({ page: p, limit: l, search: s || undefined });
+      setTrips(res.trips ?? []);
+      setMeta(res.pagination ?? null);
+    } catch {
+      setError("Failed to load trips. Please refresh.");
+    } finally {
+      setLoading(false);
     }
-    if (form.from === form.to) { setFormError("Origin and destination cannot be the same."); return; }
-    const priceNum = parseInt(form.price, 10);
-    const seatsNum = parseInt(form.seats, 10);
-    if (isNaN(priceNum) || priceNum < 1) { setFormError("Enter a valid price."); return; }
-    if (isNaN(seatsNum) || seatsNum < 1) { setFormError("Enter a valid seat count."); return; }
-    const newTrip = {
-      id: String(trips.length + 1),
-      from: form.from, to: form.to, dep: form.dep,
-      operator: form.operator,
-      price: priceNum, seats: seatsNum, booked: 0,
-      status: "scheduled",
-    };
-    setTrips([newTrip, ...trips]);
-    setShowModal(false);
-    toast.success("Trip created successfully");
+  }, []);
+
+  // Reload whenever page, limit or search changes
+  useEffect(() => { load(page, limit, search); }, [load, page, limit, search]);
+
+  // Debounce the text input: wait 350ms after last keystroke before firing
+  function handleSearchChange(e) {
+    const val = e.target.value;
+    setInputValue(val);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setPage(1);        // reset to first page on new search
+      setSearch(val);
+    }, 350);
   }
 
-  function handleEditTrip(e) {
-    e.preventDefault();
-    setFormError("");
-    if (!form.from || !form.to || !form.dep || !form.operator || !form.price || !form.seats) {
-      setFormError("Please fill in all required fields.");
-      return;
-    }
-    if (form.from === form.to) { setFormError("Origin and destination cannot be the same."); return; }
-    const priceNum = parseInt(form.price, 10);
-    const seatsNum = parseInt(form.seats, 10);
-    if (isNaN(priceNum) || priceNum < 1) { setFormError("Enter a valid price."); return; }
-    if (isNaN(seatsNum) || seatsNum < 1) { setFormError("Enter a valid seat count."); return; }
-    setTrips(trips.map((t) =>
-      t.id === editTrip.id
-        ? { ...t, from: form.from, to: form.to, dep: form.dep, operator: form.operator, price: priceNum, seats: seatsNum }
-        : t
-    ));
-    setEditTrip(null);
-    toast.success("Trip updated successfully");
+  function clearSearch() {
+    setInputValue("");
+    setSearch("");
+    setPage(1);
   }
+
+  function goTo(p) {
+    if (!meta) return;
+    const clamped = Math.max(1, Math.min(p, meta.totalPages));
+    setPage(clamped);
+  }
+
+  function handleLimitChange(e) {
+    setLimit(Number(e.target.value));
+    setPage(1);
+  }
+
+  const total      = meta?.total      ?? 0;
+  const totalPages = meta?.totalPages ?? 1;
+  const from       = meta ? (page - 1) * limit + 1 : 0;
+  const to         = meta ? Math.min(page * limit, total) : 0;
+  const pages      = pageRange(page, totalPages);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFF]">
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-[#F8FAFC]">
+      <div className="max-w-7xl mx-auto px-4 py-10">
+
+        {/* ── Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Trips</h1>
-            <p className="text-sm text-gray-500">{trips.length} trips total</p>
+            <h1 className="text-2xl font-bold text-[#0F172A]">All Trips</h1>
+            {meta && !loading && (
+              <p className="text-sm text-[#64748B] mt-0.5">
+                {total.toLocaleString()} trip{total !== 1 ? "s" : ""} across all operators
+              </p>
+            )}
           </div>
-          <Button onClick={openAdd}>+ Add Trip</Button>
+
+          {/* Search + per-page controls */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Search */}
+            <div className="relative">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
+              <input
+                value={inputValue}
+                onChange={handleSearchChange}
+                placeholder="Search city…"
+                className="pl-9 pr-8 py-2 border border-[#E2E8F0] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] w-52 transition-shadow"
+              />
+              {inputValue && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B]"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Rows per page */}
+            <div className="flex items-center gap-2 text-sm text-[#64748B]">
+              <span className="hidden sm:inline whitespace-nowrap">Rows:</span>
+              <select
+                value={limit}
+                onChange={handleLimitChange}
+                className="border border-[#E2E8F0] rounded-xl px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] cursor-pointer"
+              >
+                {PAGE_SIZES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="mb-6">
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by city…"
-            className="w-full max-w-xs border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
-        </div>
+        {error && (
+          <div className="mb-4 bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] rounded-xl px-4 py-3 text-sm">
+            {error}
+          </div>
+        )}
 
-        {/* Table */}
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        {/* ── Table ── */}
+        <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-50 text-left text-xs text-gray-400 font-semibold uppercase tracking-wider">
-                  <th className="px-6 py-4">Route</th>
-                  <th className="px-6 py-4">Operator</th>
-                  <th className="px-6 py-4">Departure</th>
-                  <th className="px-6 py-4">Price</th>
-                  <th className="px-6 py-4">Seats</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Actions</th>
+                <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider">
+                  {["Route", "Operator", "Departure", "Price", "Seats", "Status", "Availability"].map((h) => (
+                    <th key={h} className="px-6 py-4 whitespace-nowrap">{h}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.map((trip) => (
-                  <tr key={trip.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 font-semibold">{trip.from} → {trip.to}</td>
-                    <td className="px-6 py-4 text-gray-500">{trip.operator}</td>
-                    <td className="px-6 py-4 text-gray-500">{trip.dep}</td>
-                    <td className="px-6 py-4 font-medium text-blue-600">₦{trip.price.toLocaleString()}</td>
-                    <td className="px-6 py-4">
-                      <span className="font-medium">{trip.booked}</span>
-                      <span className="text-gray-400">/{trip.seats}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[trip.status]}`}>
-                        {capitalize(trip.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button onClick={() => openEdit(trip)} className="text-blue-600 hover:underline text-xs font-medium">Edit</button>
-                        <button onClick={() => setDeleteTarget(trip)}
-                          className="text-red-500 hover:underline text-xs font-medium">Delete</button>
-                      </div>
+              <tbody className="divide-y divide-[#F1F5F9]">
+                {loading ? (
+                  // Skeleton rows while loading
+                  Array.from({ length: limit > 10 ? 8 : 4 }).map((_, i) => (
+                    <tr key={i}>
+                      {Array.from({ length: 7 }).map((__, j) => (
+                        <td key={j} className="px-6 py-4">
+                          <div className={`h-4 bg-[#F1F5F9] rounded animate-pulse ${j === 0 ? "w-32" : j === 1 ? "w-28" : "w-16"}`} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : trips.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-20 text-center">
+                      <p className="text-sm font-medium text-[#94A3B8]">
+                        {search ? `No trips found matching "${search}"` : "No trips found"}
+                      </p>
+                      {search && (
+                        <button
+                          onClick={clearSearch}
+                          className="mt-2 text-xs text-[#2563EB] hover:underline"
+                        >
+                          Clear search
+                        </button>
+                      )}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  trips.map((trip) => {
+                    const status = deriveStatus(trip);
+                    const booked = (trip.totalSeats ?? 0) - (trip.availableSeats ?? 0);
+                    return (
+                      <tr key={trip.id} className="hover:bg-[#F8FAFC] transition-colors">
+                        <td className="px-6 py-4">
+                          <p className="font-semibold text-[#0F172A] whitespace-nowrap">{trip.from} → {trip.to}</p>
+                          <p className="text-xs text-[#94A3B8] mt-0.5">{trip.vehicleType}</p>
+                        </td>
+                        <td className="px-6 py-4 text-[#64748B] max-w-40 truncate">{trip.operator}</td>
+                        <td className="px-6 py-4 text-[#64748B] whitespace-nowrap">{formatTime(trip.departureTime)}</td>
+                        <td className="px-6 py-4 font-medium text-[#2563EB] whitespace-nowrap">₦{trip.price.toLocaleString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="font-medium text-[#0F172A]">{booked}</span>
+                          <span className="text-[#94A3B8]">/{trip.totalSeats}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${STATUS_BADGE[status] ?? STATUS_BADGE.scheduled}`}>
+                            {capitalize(status)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            trip.isActive !== false
+                              ? "bg-[#F0FDF4] text-[#16A34A]"
+                              : "bg-[#FEF2F2] text-[#DC2626]"
+                          }`}>
+                            {trip.isActive !== false ? "Online" : "Offline"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
+
+          {/* ── Pagination footer ── */}
+          {meta && total > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-[#F1F5F9]">
+              {/* Range label */}
+              <p className="text-sm text-[#64748B] whitespace-nowrap">
+                Showing{" "}
+                <span className="font-semibold text-[#0F172A]">{from.toLocaleString()}–{to.toLocaleString()}</span>
+                {" "}of{" "}
+                <span className="font-semibold text-[#0F172A]">{total.toLocaleString()}</span>
+                {" "}trip{total !== 1 ? "s" : ""}
+                {search && <span className="text-[#2563EB]"> for "{search}"</span>}
+              </p>
+
+              {/* Page controls */}
+              <div className="flex items-center gap-1">
+                {/* First */}
+                <button
+                  onClick={() => goTo(1)}
+                  disabled={page === 1 || loading}
+                  title="First page"
+                  className="p-1.5 rounded-lg text-[#64748B] hover:bg-[#F1F5F9] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronsLeft size={16} />
+                </button>
+                {/* Prev */}
+                <button
+                  onClick={() => goTo(page - 1)}
+                  disabled={page === 1 || loading}
+                  title="Previous page"
+                  className="p-1.5 rounded-lg text-[#64748B] hover:bg-[#F1F5F9] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                {/* Page numbers */}
+                <div className="flex items-center gap-1 mx-1">
+                  {pages.map((p, i) =>
+                    p === "…" ? (
+                      <span key={`ellipsis-${i}`} className="w-8 text-center text-[#94A3B8] text-sm select-none">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => goTo(p)}
+                        disabled={loading}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                          p === page
+                            ? "bg-[#2563EB] text-white shadow-sm"
+                            : "text-[#475569] hover:bg-[#F1F5F9]"
+                        } disabled:cursor-not-allowed`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                {/* Next */}
+                <button
+                  onClick={() => goTo(page + 1)}
+                  disabled={page === totalPages || loading}
+                  title="Next page"
+                  className="p-1.5 rounded-lg text-[#64748B] hover:bg-[#F1F5F9] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                {/* Last */}
+                <button
+                  onClick={() => goTo(totalPages)}
+                  disabled={page === totalPages || loading}
+                  title="Last page"
+                  className="p-1.5 rounded-lg text-[#64748B] hover:bg-[#F1F5F9] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronsRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Add trip modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Add New Trip">
-        <form onSubmit={handleAddTrip} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Select label="From" required value={form.from} onChange={set("from")}>
-              <option value="">Select city</option>
-              {CITIES.map((c) => <option key={c}>{c}</option>)}
-            </Select>
-            <Select label="To" required value={form.to} onChange={set("to")}>
-              <option value="">Select city</option>
-              {CITIES.map((c) => <option key={c}>{c}</option>)}
-            </Select>
-          </div>
-          <Select label="Operator" required value={form.operator} onChange={set("operator")}>
-            <option value="">Select operator</option>
-            {OPERATORS.map((o) => <option key={o}>{o}</option>)}
-          </Select>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Departure" type="datetime-local" required value={form.dep} onChange={set("dep")} />
-            <Input label="Price (₦)" type="number" placeholder="9500" required value={form.price} onChange={set("price")} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Total Seats" type="number" placeholder="18" required value={form.seats} onChange={set("seats")} />
-            <Select label="Vehicle Type" value={form.vehicle} onChange={set("vehicle")}>
-              <option>Bus</option>
-              <option>Luxury Bus</option>
-              <option>Coaster</option>
-              <option>Car</option>
-            </Select>
-          </div>
-          {formError && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-2.5">{formError}</p>}
-          <div className="flex gap-3 pt-2">
-            <Button fullWidth variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button fullWidth type="submit">Create Trip</Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Edit trip modal */}
-      <Modal isOpen={!!editTrip} onClose={() => setEditTrip(null)} title="Edit Trip">
-        <form onSubmit={handleEditTrip} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Select label="From" required value={form.from} onChange={set("from")}>
-              <option value="">Select city</option>
-              {CITIES.map((c) => <option key={c}>{c}</option>)}
-            </Select>
-            <Select label="To" required value={form.to} onChange={set("to")}>
-              <option value="">Select city</option>
-              {CITIES.map((c) => <option key={c}>{c}</option>)}
-            </Select>
-          </div>
-          <Select label="Operator" required value={form.operator} onChange={set("operator")}>
-            <option value="">Select operator</option>
-            {OPERATORS.map((o) => <option key={o}>{o}</option>)}
-          </Select>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Departure" type="datetime-local" required value={form.dep} onChange={set("dep")} />
-            <Input label="Price (₦)" type="number" required value={form.price} onChange={set("price")} />
-          </div>
-          <Input label="Total Seats" type="number" required value={form.seats} onChange={set("seats")} />
-          {formError && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-2.5">{formError}</p>}
-          <div className="flex gap-3 pt-2">
-            <Button fullWidth variant="secondary" type="button" onClick={() => setEditTrip(null)}>Cancel</Button>
-            <Button fullWidth type="submit">Save Changes</Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Confirm delete dialog */}
-      <ConfirmDialog
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          setTrips((t) => t.filter((x) => x.id !== deleteTarget.id));
-          toast.success("Trip deleted");
-          setDeleteTarget(null);
-        }}
-        title="Delete Trip"
-        message={`Delete the trip ${deleteTarget?.from} → ${deleteTarget?.to}? This action cannot be undone.`}
-        confirmLabel="Delete"
-        variant="danger"
-      />
     </div>
   );
 }

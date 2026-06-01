@@ -8,7 +8,8 @@ import { ConflictError, UnauthorizedError } from "../../shared/errors";
 import { ARGON2_OPTIONS } from "../../shared/security";
 import type { AuthUser } from "../../shared/types/auth";
 import { usersService } from "../users";
-import type { LoginInput, RegisterInput } from "./auth.schema";
+import { driversService } from "../drivers";
+import type { LoginInput, RegisterInput, DriverLoginInput } from "./auth.schema";
 import { signAccessToken } from "./auth.tokens";
 
 // Pre-compute a dummy hash at module load so the timing-safe login path is
@@ -59,12 +60,27 @@ export const authService = {
     return { token: signAccessToken(authUser), user: authUser };
   },
 
-  /** Re-read the user from the DB so role/profile changes are always fresh. */
-  async me(userId: string): Promise<AuthUser> {
+  /**
+   * Driver login — phone + password only.
+   * Timing-safe: driversService.verifyCredentials always runs argon2.verify.
+   */
+  async driverLogin(input: DriverLoginInput): Promise<{ token: string; user: AuthUser }> {
+    const { authUser } = await driversService.verifyCredentials(input.phone, input.password);
+    return { token: signAccessToken(authUser), user: authUser };
+  },
+
+  /**
+   * Re-read the identity from the DB so role/profile changes are always fresh.
+   * Drivers live in the `drivers` table; all other roles live in `users`.
+   * We branch here so a driver JWT (whose id is a Driver.id, not a User.id)
+   * doesn't falsely hit "Account no longer exists" when the users table is queried.
+   */
+  async me(userId: string, role: string): Promise<AuthUser> {
+    if (role === "driver") {
+      return driversService.getAuthUserById(userId);
+    }
     const user = await usersService.findById(userId);
     if (!user) {
-      // The JWT was valid but the account no longer exists — treat as 401,
-      // not 404, because the user can't be authenticated.
       throw new UnauthorizedError("Account no longer exists");
     }
     return usersService.toAuthUser(user);

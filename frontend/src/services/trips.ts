@@ -2,7 +2,13 @@ import api from "@/lib/api";
 import type { Trip, TripSearchParams } from "@/types";
 
 // ---- Response envelopes (match backend contract) ----
-export interface TripsEnvelope { trips: Trip[]; total?: number }
+export interface PaginationMeta {
+  page:       number;
+  limit:      number;
+  total:      number;
+  totalPages: number;
+}
+export interface TripsEnvelope { trips: Trip[]; pagination?: PaginationMeta; total?: number }
 export interface TripEnvelope  { trip: Trip }
 
 // ---- Operator create payload — no operatorId (backend reads it from JWT) ----
@@ -14,7 +20,8 @@ export interface CreateTripPayload {
   price:         number;
   totalSeats:    number;
   vehicleType:   string;
-  driverNumber?: string;
+  /** UUID of a Driver record belonging to this operator. */
+  driverId?:     string;
   parkName?:     string;
   amenities?:    string[];
 }
@@ -38,54 +45,74 @@ export interface TripPassengerDTO {
 
 /** Passenger: search available trips by route, date, and passenger count. */
 export function searchTrips(params: TripSearchParams): Promise<TripsEnvelope> {
-  return api.get("/trips/search", { params });
+  return api.get<TripsEnvelope, TripsEnvelope>("/trips/search", { params });
 }
 
 /** Passenger / any: fetch a single trip with its full seat map. */
 export function fetchTrip(id: string): Promise<TripEnvelope> {
-  return api.get(`/trips/${id}`);
+  return api.get<TripEnvelope, TripEnvelope>(`/trips/${id}`);
 }
 
 /**
- * Admin / Operator: list trips.
+ * Admin / Operator: list trips with server-side pagination and optional search.
  * Backend filters by operatorId from the JWT for operators; admins see all.
- * No client-side operatorId parameter — the backend derives it from the JWT.
  */
-export function fetchTrips(): Promise<TripsEnvelope> {
-  return api.get("/trips");
+export function fetchTrips(params?: {
+  page?:   number;
+  limit?:  number;
+  search?: string;
+}): Promise<TripsEnvelope> {
+  return api.get<TripsEnvelope, TripsEnvelope>("/trips", { params });
 }
 
 /** Driver: fetch trips assigned to this driver (matched by phone → driverNumber on backend). */
 export function fetchDriverTrips(): Promise<TripsEnvelope> {
-  return api.get("/trips/mine");
+  return api.get<TripsEnvelope, TripsEnvelope>("/trips/mine");
 }
 
 /** Operator: create a trip (seats are auto-generated on the backend). */
 export function createTrip(payload: CreateTripPayload): Promise<TripEnvelope> {
-  return api.post("/trips", payload);
+  return api.post<TripEnvelope, TripEnvelope>("/trips", payload);
 }
 
 /** Operator: delete a trip and all its seats. */
 export function deleteTrip(id: string): Promise<void> {
-  return api.delete(`/trips/${id}`);
+  return api.delete<void, void>(`/trips/${id}`);
 }
 
 /** Operator: toggle a trip online (isActive=true) or offline (isActive=false). */
 export function toggleTripActive(id: string, isActive: boolean): Promise<TripEnvelope> {
-  return api.patch(`/trips/${id}/active`, { isActive });
+  return api.patch<TripEnvelope, TripEnvelope>(`/trips/${id}/active`, { isActive });
 }
 
 /** Operator/Admin: manually mark a trip full or reopen it for booking. */
 export function markTripFull(id: string, isFull: boolean): Promise<TripEnvelope> {
-  return api.patch(`/trips/${id}/fill`, { isFull });
+  return api.patch<TripEnvelope, TripEnvelope>(`/trips/${id}/fill`, { isFull });
 }
 
 /** Operator/Admin: record the total number of offline (walk-in) bookings for a trip. */
 export function setTripOfflineCount(id: string, offlineCount: number): Promise<TripEnvelope> {
-  return api.patch(`/trips/${id}/offline`, { offlineCount });
+  return api.patch<TripEnvelope, TripEnvelope>(`/trips/${id}/offline`, { offlineCount });
 }
 
 /** Operator/Driver/Admin: get the passenger list for a specific trip. */
 export function fetchTripPassengers(id: string): Promise<{ passengers: TripPassengerDTO[] }> {
-  return api.get(`/trips/${id}/passengers`);
+  return api.get<{ passengers: TripPassengerDTO[] }, { passengers: TripPassengerDTO[] }>(
+    `/trips/${id}/passengers`
+  );
+}
+
+/** Operator: list all drivers belonging to this operator (for trip assignment). */
+export function fetchOperatorDrivers(): Promise<{ drivers: import("@/types").DriverDTO[] }> {
+  return api.get("/drivers");
+}
+
+/** Operator: create a new driver. */
+export function createDriver(payload: {
+  fullName:  string;
+  phone:     string;
+  password:  string;
+  licenseNo?: string;
+}): Promise<{ driver: import("@/types").DriverDTO }> {
+  return api.post("/drivers", payload);
 }

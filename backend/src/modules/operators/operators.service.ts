@@ -21,7 +21,11 @@ import { pageMeta, type PaginationQuery, type PageMeta } from "../../shared/pagi
 import { eventBus } from "../../infra/events";
 import { usersService } from "../users";
 import { operatorsRepository } from "./operators.repository";
-import type { ListOperatorsQuery, RegisterOperatorInput } from "./operators.schema";
+import type {
+  ListOperatorsQuery,
+  RegisterOperatorInput,
+  UpdateOperatorProfileInput,
+} from "./operators.schema";
 
 export interface ApproveResult {
   operator: Operator;
@@ -120,6 +124,29 @@ export const operatorsService = {
     });
 
     return { operator: updated! };
+  },
+
+  /**
+   * Get the operator profile for the calling operator user.
+   * operatorId comes from the verified JWT — no guessing, no cross-user access.
+   */
+  async getMyProfile(operatorId: string): Promise<Operator> {
+    const op = await operatorsRepository.findById(operatorId);
+    if (!op) throw new NotFoundError("Operator profile not found");
+    return op;
+  },
+
+  /**
+   * Update mutable fields of the calling operator's own profile.
+   * Ownership is guaranteed: operatorId is read from the JWT, not the request body.
+   */
+  async updateMyProfile(
+    operatorId: string,
+    data: UpdateOperatorProfileInput
+  ): Promise<Operator> {
+    const op = await operatorsRepository.findById(operatorId);
+    if (!op) throw new NotFoundError("Operator profile not found");
+    return operatorsRepository.updateProfile(operatorId, data);
   },
 
   /** Decline a pending application. No User account is created. Admin only. */

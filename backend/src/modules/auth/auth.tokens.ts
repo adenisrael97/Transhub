@@ -15,22 +15,27 @@ import type { AuthUser } from "../../shared/types/auth";
 // a malformed or tampered token never reaches req.user with undefined fields.
 const tokenPayloadSchema = z.object({
   id: z.uuid(),
-  email: z.email(),
+  // Optional: drivers authenticate by phone only, no email in their token.
+  email: z.email().optional(),
   fullName: z.string().min(1),
   phone: z.string().min(1),
   role: z.enum(["passenger", "operator", "admin", "driver"]),
-  // Only present for role=operator. Optional so passenger/admin tokens stay valid.
+  // Present for role=operator (links to Operator record) and role=driver (scopes queries).
   operatorId: z.uuid().optional(),
 });
 
 export function signAccessToken(user: AuthUser): string {
   return jwt.sign(user, env.JWT_SECRET, {
+    algorithm: "HS256",
     expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
   });
 }
 
 export function verifyAccessToken(token: string): AuthUser {
-  const decoded = jwt.verify(token, env.JWT_SECRET);
+  // Pin the algorithm: without an explicit allow-list jsonwebtoken accepts any
+  // algorithm in the token header. Restricting to HS256 closes algorithm-
+  // confusion / downgrade attacks and rejects "alg: none" tokens outright.
+  const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] });
   if (typeof decoded === "string") {
     throw new Error("Unexpected string token payload");
   }

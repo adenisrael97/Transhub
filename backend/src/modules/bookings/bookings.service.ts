@@ -1,101 +1,47 @@
 /**
  * Bookings business logic — two-phase hold → confirm.
  *
- * Hold:   DB transaction (available→held) + Redis TTL keys + BullMQ expiry job.
- * Confirm: idempotency check → Prisma $transaction (SELECT FOR UPDATE + booked) →
- *           delete Redis keys → emit booking.confirmed.
+ * Hold:    trip-state validation → inventoryService.holdSeats (owns the DB
+ *          transaction + Redis TTL keys + BullMQ expiry job).
+ * Confirm: idempotency check → prisma.$transaction(inventoryService.lockAndMarkBooked
+ *          + bookingsRepository.createBookingRecord) → Redis cleanup → events.
+ *
+ * This service must NOT write to the `seats` table directly — that is owned
+ * by the inventory module (Table-ownership rule #2).
  */
 import { prisma } from "../../infra/db/client";
-import { redis } from "../../infra/redis/client";
-import { logger } from "../../infra/logger";
 import { ConflictError, NotFoundError, ForbiddenError } from "../../shared/errors";
 import { eventBus } from "../../infra/events";
-import { holdExpiryQueue } from "../../infra/queue/client";
 import { bookingsRepository, type BookingDTO, type TripPassengerDTO } from "./bookings.repository";
+import { inventoryService } from "../inventory";
 import { pageMeta, type PaginationQuery, type PageMeta } from "../../shared/pagination";
 import type { HoldInput, ConfirmInput } from "./bookings.schema";
+import type { HoldResult } from "../inventory";
 
-const HOLD_TTL_SEC = 600; // 10 minutes
-
-export interface HoldResult {
-  holdId:    string;
-  expiresAt: string; // ISO-8601
-  tripId:    string;
-  quantity:  number;
-}
+export { type HoldResult };
 
 export const bookingsService = {
   /**
    * Phase A — Hold.
-   * Wraps the DB updateMany in a transaction so a partial hold (some seats
-   * already taken) rolls back atomically.  Redis + BullMQ writes happen only
-   * after the DB transaction commits.
+   * Validates trip state (bookings concern), then delegates the full seat-claim
+   * transaction + Redis + BullMQ to inventoryService.holdSeats.
    */
   async hold(input: HoldInput, userId: string): Promise<HoldResult> {
     const { tripId, quantity } = input;
 
-    // Verify trip exists and is bookable
     const tripState = await bookingsRepository.findTripBookingState(tripId);
     if (tripState === null) throw new NotFoundError("Trip not found");
     if (!["scheduled", "active"].includes(tripState.status)) {
-      throw new ConflictError("This trip is not available for booking");
+      throw new ConflictError("This trip is not available for booking", "TRIP_UNAVAILABLE");
     }
     if (!tripState.isActive) {
-      throw new ConflictError("This trip is not currently accepting bookings");
+      throw new ConflictError("This trip is not currently accepting bookings", "TRIP_UNAVAILABLE");
     }
     if (tripState.isFull) {
-      throw new ConflictError("This trip is marked full");
+      throw new ConflictError("This trip is marked full", "TRIP_FULL");
     }
 
-    // heldUntil is the DB-side expiry stamp; it must be set inside the hold
-    // transaction so the sweeper can reclaim the seat even if everything after
-    // the commit (Redis, BullMQ) fails.
-    const expiresAt = new Date(Date.now() + HOLD_TTL_SEC * 1000);
-
-    // Atomically claim `quantity` free slots inside a transaction. claimAvailableSeats
-    // uses FOR UPDATE SKIP LOCKED so concurrent claims take disjoint rows and total
-    // holds can never exceed capacity. Fewer than requested → trip is full → 409.
-    const seatIds = await prisma.$transaction(async (tx) => {
-      const claimed = await bookingsRepository.claimAvailableSeats(tripId, quantity, userId, expiresAt, tx);
-      if (claimed.length < quantity) {
-        throw new ConflictError("Not enough seats available on this trip");
-      }
-      return claimed;
-    });
-
-    // DB committed — now write Redis hold keys
-    const pipeline = redis.pipeline();
-    for (const seatId of seatIds) {
-      pipeline.set(`seat_hold:${tripId}:${seatId}`, userId, "EX", HOLD_TTL_SEC);
-    }
-    pipeline.set(
-      `user_hold:${userId}`,
-      JSON.stringify(seatIds.map((seatId) => ({ tripId, seatId }))),
-      "EX",
-      HOLD_TTL_SEC
-    );
-    await pipeline.exec().catch((err) => {
-      logger.warn({ err, tripId }, "Failed to write Redis hold keys (sweeper still covers expiry)");
-    });
-
-    // Enqueue the fast per-hold expiry job. Best-effort: the DB hold has already
-    // committed with heldUntil, and the periodic sweeper will reclaim it, so a
-    // failed enqueue must NOT fail the request (which would leave the caller with
-    // a 500 despite a valid hold). The job is just the faster release path.
-    await holdExpiryQueue
-      .add("expire", { userId, tripId, seatIds }, { delay: HOLD_TTL_SEC * 1000 })
-      .catch((err) => {
-        logger.warn({ err, tripId }, "Failed to enqueue hold-expiry job (sweeper still covers expiry)");
-      });
-
-    // Opaque client-side hold reference (for telemetry / debugging only — the
-    // server tracks the real hold via Redis keys + the BullMQ expiry job).
-    return {
-      holdId:    `${userId}:${tripId}:${Date.now()}`,
-      expiresAt: expiresAt.toISOString(),
-      tripId,
-      quantity,
-    };
+    return inventoryService.holdSeats(tripId, quantity, userId);
   },
 
   /**
@@ -114,11 +60,12 @@ export const bookingsService = {
 
     const totalAmount = seatIds.length * price;
 
-    // Single transaction: SELECT FOR UPDATE → update status → create booking + passenger info
+    // Single transaction: inventory locks + marks seats booked → booking record created
     let booking: BookingDTO;
     try {
       booking = await prisma.$transaction(async (tx) => {
-        return bookingsRepository.confirmSeats(
+        await inventoryService.lockAndMarkBooked(tripId, seatIds, userId, tx);
+        return bookingsRepository.createBookingRecord(
           tripId,
           seatIds,
           { userId, totalAmount, paymentRef, passengers: input.passengers },
@@ -128,10 +75,9 @@ export const bookingsService = {
     } catch (err) {
       // Two identical webhooks can race past the pre-check above and both enter
       // confirm; the loser's SELECT FOR UPDATE sees the seats already booked and
-      // throws ConflictError. Re-check by paymentRef: if a booking now exists it
-      // was THIS payment (the winner), so return it — duplicate webhooks are
-      // idempotent, not a "seats unavailable" refund case. A genuine conflict
-      // (no booking for this ref) still propagates.
+      // throws HoldExpiredError (extends ConflictError). Re-check by paymentRef:
+      // if a booking now exists it was THIS payment (the winner), so return it —
+      // duplicate webhooks are idempotent, not a "seats unavailable" refund case.
       if (err instanceof ConflictError) {
         const raced = await bookingsRepository.findByPaymentRef(paymentRef);
         if (raced) return raced;
@@ -139,13 +85,8 @@ export const bookingsService = {
       throw err;
     }
 
-    // Clean up Redis (best-effort; TTL will self-clean even if this fails)
-    const pipeline = redis.pipeline();
-    for (const seatId of seatIds) {
-      pipeline.del(`seat_hold:${tripId}:${seatId}`);
-    }
-    pipeline.del(`user_hold:${userId}`);
-    await pipeline.exec().catch(() => {});
+    // Release Redis hold keys (best-effort; TTL self-cleans even if this fails)
+    await inventoryService.releaseHoldKeys(tripId, seatIds, userId);
 
     // Notify Phase 7 subscribers (notifications, tickets)
     eventBus.emit("booking.confirmed", {
@@ -156,6 +97,14 @@ export const bookingsService = {
       totalAmount,
       paymentRef,
     });
+
+    if (booking.trip) {
+      eventBus.emit("booking.created", {
+        operatorId: booking.trip.operatorId,
+        bookingId:  booking.id,
+        tripId,
+      });
+    }
 
     return booking;
   },
@@ -183,23 +132,25 @@ export const bookingsService = {
 
   /**
    * Return the passenger list for a trip.
-   * Access: operator who owns the trip OR driver whose phone matches driverNumber.
+   * Access: operator who owns the trip, the driver assigned to it (by FK driverId),
+   * or admin.
    */
   async getPassengersByTripId(
-    tripId:          string,
-    requesterId:     string,
-    requesterRole:   string,
-    requesterPhone?: string
+    tripId:        string,
+    requesterId:   string,
+    requesterRole: string
   ): Promise<TripPassengerDTO[]> {
-    // Verify trip exists and that the requester may access it
     const trip = await prisma.trip.findUnique({
       where:  { id: tripId },
-      select: { operatorId: true, driverNumber: true, operator: { select: { user: { select: { id: true } } } } },
+      select: {
+        driverId: true,
+        operator: { select: { user: { select: { id: true } } } },
+      },
     });
     if (!trip) throw new NotFoundError("Trip not found");
 
     const isOwner  = trip.operator?.user?.id === requesterId;
-    const isDriver = requesterRole === "driver" && requesterPhone && trip.driverNumber === requesterPhone;
+    const isDriver = requesterRole === "driver" && trip.driverId === requesterId;
     const isAdmin  = requesterRole === "admin";
 
     if (!isOwner && !isDriver && !isAdmin) {
@@ -209,19 +160,17 @@ export const bookingsService = {
     return bookingsRepository.findPassengersByTripId(tripId);
   },
 
-  /** Look up a booking by its payment reference (used by payments module for idempotency + verify). */
+  /** Look up a booking by its payment reference (used by payments module). */
   async getByPaymentRef(paymentRef: string): Promise<BookingDTO | null> {
     return bookingsRepository.findByPaymentRef(paymentRef);
   },
 
   /**
-   * The seat IDs this user currently holds for a trip — the authoritative set
-   * payment initialization uses to compute the amount and build the webhook
-   * metadata. Verified against the DB (not Redis) so payment init survives a
-   * Redis outage during the hold phase. Empty array → no live hold.
+   * The seat IDs this user currently holds for a trip — verified against the DB
+   * (not Redis) so payment init survives a Redis outage during the hold phase.
    */
   async getHeldSeatIds(tripId: string, userId: string): Promise<string[]> {
-    return bookingsRepository.idsHeldBy(tripId, userId, new Date());
+    return inventoryService.heldSeatIds(tripId, userId);
   },
 
   /** Get a single booking — owner or admin only. */
@@ -234,3 +183,4 @@ export const bookingsService = {
     return booking;
   },
 };
+

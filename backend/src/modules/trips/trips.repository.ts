@@ -42,9 +42,9 @@ export interface TripDTO {
   totalSeats:     number;
   availableSeats: number;
   vehicleType:    string;
-  // The driver's phone number is PII. Present only on authenticated operator/admin
-  // responses; omitted from public search + trip-detail so it isn't scraped.
-  driverNumber?:  string | null;
+  // driverId is PII-adjacent. Present only on authenticated operator/admin/driver
+  // responses; omitted from public search + trip-detail to prevent scraping.
+  driverId?:      string | null;
   parkName:       string | null;
   amenities:      string[];
   status:         string;
@@ -107,7 +107,7 @@ type RawTrip = {
   price:        number;
   totalSeats:   number;
   vehicleType:  string;
-  driverNumber: string | null;
+  driverId:     string | null;
   parkName:     string | null;
   amenities:    string[];
   status:       string;
@@ -142,7 +142,7 @@ function baseDTO(raw: RawTrip, availableSeats: number, exposeDriver: boolean): T
     totalSeats:     raw.totalSeats,
     availableSeats,
     vehicleType:    raw.vehicleType,
-    ...(exposeDriver ? { driverNumber: raw.driverNumber } : {}),
+    ...(exposeDriver ? { driverId: raw.driverId } : {}),
     parkName:       raw.parkName,
     amenities:      raw.amenities,
     status:         raw.status,
@@ -182,7 +182,7 @@ export const tripsRepository = {
         price:         data.price,
         totalSeats:    data.totalSeats,
         vehicleType:   data.vehicleType,
-        driverNumber:  data.driverNumber ?? null,
+        driverId:      data.driverId ?? null,
         parkName:      data.parkName ?? null,
         amenities:     data.amenities ?? [],
         operatorId,
@@ -240,21 +240,37 @@ export const tripsRepository = {
   },
 
   /**
-   * Driver view: all trips whose driverNumber matches the driver's phone.
-   * Ordered soonest-first so the active trip appears at the top.
+   * Driver view: trips assigned to this driver (matched by FK driverId),
+   * bounded to today's boarding-relevant window (computed server-side —
+   * from 4h ago through end of current day so a driver's device clock
+   * can't make a trip wrongly appear or disappear). Ordered soonest-first
+   * so the active trip sits at the top of the dashboard.
    */
-  async listByDriver(phone: string): Promise<TripDTO[]> {
+  async listByDriver(driverId: string, window?: { from: Date; to: Date }): Promise<TripDTO[]> {
     const trips = await prisma.trip.findMany({
-      where:   { driverNumber: phone },
+      where: {
+        driverId,
+        ...(window ? { departureTime: { gte: window.from, lte: window.to } } : {}),
+      },
       include: TRIP_FOR_LIST,
       orderBy: { departureTime: "asc" },
     });
     return trips.map((t) => toListDTO(t as unknown as RawTripForList, true));
   },
 
-  /** A page of trips, optionally filtered by operator. Operator/admin only — driver shown. */
-  async findAll(filter: { operatorId?: string }, pagination: PaginationQuery): Promise<Page<TripDTO>> {
-    const where = filter.operatorId ? { operatorId: filter.operatorId } : undefined;
+  /** A page of trips, optionally filtered by operator and/or city search. Operator/admin only. */
+  async findAll(
+    filter: { operatorId?: string; search?: string },
+    pagination: PaginationQuery
+  ): Promise<Page<TripDTO>> {
+    const where: import("@prisma/client").Prisma.TripWhereInput = {};
+    if (filter.operatorId) where.operatorId = filter.operatorId;
+    if (filter.search) {
+      where.OR = [
+        { from: { contains: filter.search, mode: "insensitive" } },
+        { to:   { contains: filter.search, mode: "insensitive" } },
+      ];
+    }
     const [trips, total] = await prisma.$transaction([
       prisma.trip.findMany({
         where,
@@ -298,11 +314,16 @@ export const tripsRepository = {
 
   /**
    * Manually mark a trip full (or reopen it).
-   * Admin passes operatorId=undefined to bypass ownership check.
-   * Returns null if the trip was not found or not owned by the given operator.
+   * ownerFilter is undefined for admin (bypass ownership), { operatorId } for operators,
+   * or { driverId } for drivers (who can only mark trips assigned to them).
+   * Returns null if the trip was not found or not owned by the filter.
    */
-  async markFull(id: string, operatorId: string | undefined, isFull: boolean): Promise<TripDTO | null> {
-    const where = operatorId ? { id, operatorId } : { id };
+  async markFull(
+    id: string,
+    ownerFilter: { operatorId?: string; driverId?: string } | undefined,
+    isFull: boolean
+  ): Promise<TripDTO | null> {
+    const where = ownerFilter ? { id, ...ownerFilter } : { id };
     const result = await prisma.trip.updateMany({ where, data: { isFull } });
     if (result.count === 0) return null;
     const trip = await prisma.trip.findUnique({ where: { id }, include: TRIP_FOR_LIST });
@@ -312,16 +333,17 @@ export const tripsRepository = {
 
   /**
    * Record the absolute count of offline (walk-in) bookings for a trip.
-   * Admin passes operatorId=undefined to bypass ownership check.
+   * ownerFilter is undefined for admin, { operatorId } for operators,
+   * or { driverId } for drivers.
    * Returns null if the trip was not found or not owned.
    */
   async setOfflineCount(
     id: string,
-    operatorId: string | undefined,
+    ownerFilter: { operatorId?: string; driverId?: string } | undefined,
     offlineCount: number,
     autoFull: boolean
   ): Promise<TripDTO | null> {
-    const where = operatorId ? { id, operatorId } : { id };
+    const where = ownerFilter ? { id, ...ownerFilter } : { id };
     const data: { offlineCount: number; isFull?: boolean } = { offlineCount };
     if (autoFull) data.isFull = true;
     const result = await prisma.trip.updateMany({ where, data });
