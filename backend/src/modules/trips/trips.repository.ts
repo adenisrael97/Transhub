@@ -8,6 +8,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../infra/db/client";
 import { toSkipTake, type PaginationQuery, type Page } from "../../shared/pagination";
+import { toNumberRange } from "../../shared/list-query";
 import type { CreateTripInput } from "./trips.schema";
 
 type Tx = Prisma.TransactionClient;
@@ -207,36 +208,72 @@ export const tripsRepository = {
     return toListDTO(trip as unknown as RawTripForList, false);
   },
 
-  /** Passenger search: case-insensitive route + date + minimum availability filter. */
+  /**
+   * Passenger search: route + date + refinement filters (vehicle type, price band,
+   * amenities, operator) with sort and pagination.
+   *
+   * All filters except availability run in SQL: route/date/status hit the
+   * (from, to, departureTime) btree index; price/vehicleType/operatorId/amenities
+   * narrow further. The minimum-availability filter (`availableSeats >= passengers`)
+   * runs in JS because availableSeats = COUNT(available seats) − offlineCount, a
+   * derived value Prisma can't express in WHERE. A single route+date is a bounded
+   * result set, so we cap the DB fetch defensively and paginate the filtered list.
+   */
   async search(params: {
     from:         string;
     to:           string;
     date:         string;
     minAvailable: number;
-  }): Promise<TripDTO[]> {
+    vehicleType?: string;
+    minPrice?:    number;
+    maxPrice?:    number;
+    amenities?:   string[];
+    operatorId?:  string;
+    sort:         "departure" | "price_asc" | "price_desc";
+    page:         number;
+    limit:        number;
+  }): Promise<Page<TripDTO>> {
     const { start: dayStart, end: dayEnd } = watDayBounds(params.date);
+
+    const priceRange = toNumberRange(params.minPrice, params.maxPrice);
 
     // Exact (case-sensitive) match: params.from/to arrive already canonicalized
     // by normalizeCity (search schema transform) and stored values are canonical
     // too, so this uses the (from, to, departureTime) btree index instead of the
     // un-indexable ILIKE that `mode:"insensitive"` would emit.
+    const where: Prisma.TripWhereInput = {
+      from:          params.from,
+      to:            params.to,
+      departureTime: { gte: dayStart, lte: dayEnd },
+      status:        { in: ["scheduled", "active"] },
+      isActive:      true,
+      isFull:        false,
+      ...(params.vehicleType ? { vehicleType: params.vehicleType } : {}),
+      ...(priceRange ? { price: priceRange } : {}),
+      ...(params.amenities && params.amenities.length ? { amenities: { hasEvery: params.amenities } } : {}),
+      ...(params.operatorId ? { operatorId: params.operatorId } : {}),
+    };
+
+    const orderBy: Prisma.TripOrderByWithRelationInput[] =
+      params.sort === "price_asc"  ? [{ price: "asc" },  { departureTime: "asc" }] :
+      params.sort === "price_desc" ? [{ price: "desc" }, { departureTime: "asc" }] :
+      [{ departureTime: "asc" }];
+
     const trips = await prisma.trip.findMany({
-      where: {
-        from:          params.from,
-        to:            params.to,
-        departureTime: { gte: dayStart, lte: dayEnd },
-        status:        { in: ["scheduled", "active"] },
-        isActive:      true,
-        isFull:        false,
-      },
+      where,
       include: TRIP_FOR_LIST,
-      orderBy: { departureTime: "asc" },
+      orderBy,
+      take: 500, // safety cap — one route on one day never approaches this
     });
 
-    // Public search — no driver PII in the results.
-    return trips
+    // Public search — no driver PII in the results. Availability filter is the
+    // only post-query step; everything else was narrowed in SQL.
+    const filtered = trips
       .map((t) => toListDTO(t as unknown as RawTripForList, false))
       .filter((t) => t.availableSeats >= params.minAvailable);
+
+    const { skip, take } = toSkipTake({ page: params.page, limit: params.limit });
+    return { items: filtered.slice(skip, skip + take), total: filtered.length };
   },
 
   /**

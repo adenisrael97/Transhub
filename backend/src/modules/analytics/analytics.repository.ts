@@ -29,6 +29,13 @@ export interface OperatorStat {
   revenue:  number;
 }
 
+export interface OperatorStats {
+  totalBookings:  number;
+  revenue:        number;
+  activeTrips:    number;
+  totalVehicles:  number;
+}
+
 export const analyticsRepository = {
   async getSummary(): Promise<AnalyticsSummary> {
     // COUNT/SUM over an int column come back from Prisma raw queries as bigint
@@ -70,16 +77,21 @@ export const analyticsRepository = {
     // bound parameter inside SQL ($1 * INTERVAL is ambiguous to the planner).
     // Cast the grouped date to text in SQL so we never round-trip through a JS
     // Date (which would shift the day under any non-UTC server/locale).
-    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    //
+    // WAT is UTC+1 fixed (no DST). Subtracting an extra hour from the cutoff
+    // ensures the window covers the full first WAT day even when the DB server
+    // runs in UTC (a booking at 23:30 UTC = 00:30 WAT the next day must not be
+    // cut off). AT TIME ZONE 'Africa/Lagos' groups by WAT calendar day.
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000 - 60 * 60 * 1000);
     const rows = await prisma.$queryRaw<Array<{ date: string; revenue: bigint }>>`
       SELECT
-        DATE("createdAt")::text AS date,
-        SUM("totalAmount")      AS revenue
+        DATE("createdAt" AT TIME ZONE 'Africa/Lagos')::text AS date,
+        SUM("totalAmount")                                   AS revenue
       FROM bookings
       WHERE status = 'confirmed'
         AND "createdAt" >= ${cutoff}
-      GROUP BY DATE("createdAt")
-      ORDER BY DATE("createdAt") ASC
+      GROUP BY DATE("createdAt" AT TIME ZONE 'Africa/Lagos')
+      ORDER BY DATE("createdAt" AT TIME ZONE 'Africa/Lagos') ASC
     `;
     return rows.map((r) => ({
       date:    r.date,
@@ -109,7 +121,42 @@ export const analyticsRepository = {
     }));
   },
 
-  async getBookingsByOperator(): Promise<OperatorStat[]> {
+  async getOperatorStats(operatorId: string): Promise<OperatorStats> {
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [bookings, trips, vehicles] = await Promise.all([
+      prisma.$queryRaw<[{ count: bigint; revenue: bigint | null }]>`
+        SELECT COUNT(b.id)          AS count,
+               SUM(b."totalAmount") AS revenue
+        FROM bookings b
+        JOIN trips t ON t.id = b."tripId"
+        WHERE t."operatorId" = ${operatorId}
+          AND b.status = 'confirmed'
+          AND b."createdAt" >= ${cutoff}
+      `,
+      prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(*) AS count
+        FROM trips
+        WHERE "operatorId" = ${operatorId}
+          AND status IN ('scheduled', 'active')
+      `,
+      prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(*) AS count
+        FROM vehicles
+        WHERE "operatorId" = ${operatorId}
+          AND active = true
+      `,
+    ]);
+
+    return {
+      totalBookings: Number(bookings[0].count),
+      revenue:       Number(bookings[0].revenue ?? 0),
+      activeTrips:   Number(trips[0].count),
+      totalVehicles: Number(vehicles[0].count),
+    };
+  },
+
+  async getBookingsByOperator(limit = 20): Promise<OperatorStat[]> {
     const rows = await prisma.$queryRaw<
       Array<{ operator: string; bookings: bigint; revenue: bigint }>
     >`
@@ -123,6 +170,7 @@ export const analyticsRepository = {
       WHERE b.status = 'confirmed'
       GROUP BY o."companyName"
       ORDER BY revenue DESC
+      LIMIT ${limit}
     `;
     return rows.map((r) => ({
       operator: r.operator,

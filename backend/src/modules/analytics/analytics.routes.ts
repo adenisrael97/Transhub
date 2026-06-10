@@ -1,7 +1,3 @@
-/**
- * All analytics routes require admin role.
- * Middleware applied once at the router level rather than per-route.
- */
 import { Router } from "express";
 import { authenticate }  from "../../middleware/authenticate";
 import { requireRole }   from "../../middleware/rbac";
@@ -11,6 +7,15 @@ import { revenueQuerySchema }  from "./analytics.schema";
 
 export const analyticsRouter = Router();
 
+// Operator stats — operator role only (scoped to their own data by operatorId from JWT)
+analyticsRouter.get(
+  "/operator",
+  authenticate,
+  requireRole("operator"),
+  analyticsController.operatorStats
+);
+
+// Admin analytics — all routes below require admin role
 analyticsRouter.use(authenticate, requireRole("admin"));
 
 analyticsRouter.get("/summary",   analyticsController.summary);

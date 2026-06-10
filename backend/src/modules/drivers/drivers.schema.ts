@@ -1,5 +1,26 @@
 /** Zod schemas for driver management (operator CRUD) and driver auth. */
 import { z } from "zod";
+import { paginationQuerySchema } from "../../shared/pagination";
+import { searchSchema } from "../../shared/list-query";
+
+/**
+ * Driver list query.
+ *  - operatorId: admin-only filter by company (ignored for operators, who are
+ *                scoped to their own fleet from the JWT)
+ *  - isActive:   active/deactivated filter (string "true"/"false" → boolean)
+ *  - search:     full name / phone / license number
+ */
+export const listDriversQuerySchema = z.object({
+  operatorId: z.string().uuid().optional(),
+  isActive: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === "true")),
+  ...searchSchema.shape,
+  ...paginationQuerySchema.shape,
+});
+
+export type ListDriversQuery = z.infer<typeof listDriversQuerySchema>;
 
 export const createDriverSchema = z.object({
   fullName:  z.string().min(2, "Full name is required"),

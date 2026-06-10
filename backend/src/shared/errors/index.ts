@@ -43,8 +43,23 @@ export class NotFoundError extends AppError {
 }
 
 export class ConflictError extends AppError {
-  constructor(message = "Resource conflict") {
-    super(409, message, "CONFLICT");
+  // `code` defaults to the generic CONFLICT but callers can pass a domain-specific
+  // code (e.g. TRIP_FULL, HOLD_EXPIRED, INSUFFICIENT_SEATS) so the frontend can
+  // show targeted copy instead of string-matching on the message.
+  constructor(message = "Resource conflict", code = "CONFLICT", details?: unknown) {
+    super(409, message, code, details);
+  }
+}
+
+export class InsufficientSeatsError extends ConflictError {
+  constructor(message = "Not enough seats available on this trip") {
+    super(message, "INSUFFICIENT_SEATS");
+  }
+}
+
+export class HoldExpiredError extends ConflictError {
+  constructor(message = "Hold has expired or seats are no longer available") {
+    super(message, "HOLD_EXPIRED");
   }
 }
 

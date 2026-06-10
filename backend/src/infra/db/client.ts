@@ -4,8 +4,22 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { logger } from "../logger";
+import { env } from "../../config/env";
+import { reportSlow } from "../sentry";
 
-export const prisma = new PrismaClient();
+// Emit query events so we can surface slow queries as a performance signal.
+export const prisma = new PrismaClient({
+  log: [{ emit: "event", level: "query" }],
+});
+
+// Slow-query monitoring. We send ONLY the query template (which carries `$1`,
+// `$2` placeholders, never the bound values) + its duration — never `e.params`,
+// which can contain user data. Grouped per query pattern in Sentry.
+prisma.$on("query", (e) => {
+  if (e.duration >= env.SLOW_QUERY_MS) {
+    reportSlow("query", e.duration, { target: e.query.slice(0, 300) });
+  }
+});
 
 export async function connectDb(): Promise<void> {
   await prisma.$connect();

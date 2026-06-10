@@ -1,89 +1,62 @@
-import Link from "next/link"
+import Link from "next/link";
+import { Ticket, MapPin, Mail, ChevronDown } from "lucide-react";
 
 export const metadata = {
-  title: "Help & FAQs",
+  title: "Help Center — TransHub",
   description: "Find answers to common questions about booking seats, sending goods, chartering, and tracking on TransHub.",
 };
 
+const QUICK_LINKS = [
+  { href: "/search", Icon: Ticket, color: "#2563EB", bg: "#EFF6FF", title: "Book a Trip",       desc: "Search and book seats" },
+  { href: "/track",  Icon: MapPin, color: "#16A34A", bg: "#F0FDF4", title: "Track Package",     desc: "Find your shipment"    },
+  { href: "/contact", Icon: Mail,  color: "#D97706", bg: "#FFFBEB", title: "Contact Support",   desc: "Get in touch"          },
+];
+
+const FAQS = [
+  { question: "How do I book a seat?",              answer: "Search for your route on the homepage, select your preferred trip and departure time, then complete payment. Your e-ticket is issued instantly and sent to your email — show it to the conductor at boarding." },
+  { question: "How do I cancel a booking?",         answer: "Go to your dashboard and open the booking you want to cancel. Select 'Cancel Booking' and confirm. Cancellations made more than 24 hours before departure are eligible for a refund processed within 5–7 business days." },
+  { question: "What payment methods are accepted?", answer: "We accept all major debit/credit cards, bank transfers, and USSD payments via Paystack. All transactions are secured with 256-bit SSL encryption — we never store your card details." },
+  { question: "How do I charter a bus?",            answer: "Go to the Charter page and fill in your route, date, vehicle type, and contact details. Our team will review your request and send a quote within 2 hours. Once you accept and pay, your charter is confirmed." },
+  { question: "How do I track a waybill?",          answer: "Visit the Track Package page and enter your waybill number (e.g. WB-2026-K3M9PX). You'll see real-time status updates from pickup through to delivery. Share the waybill number with the recipient so they can track too." },
+  { question: "What if I miss my bus?",             answer: "Contact our support team immediately on +234 800 000 0000. We'll check availability on the next departure for the same route. Missed-bus rebooking is subject to seat availability and may incur a rebooking fee." },
+];
+
 export default function HelpPage() {
-  const faqs = [
-    {
-      question: "How do I book a seat?",
-      answer: "Simply search for your route, select your preferred trip, choose your seat from the seat map, and complete payment. You'll receive your e-ticket instantly via email and SMS.",
-    },
-    {
-      question: "How do I track my package?",
-      answer: "Go to the Track Package page and enter your waybill number. You'll see real-time updates on your package location and estimated delivery time.",
-    },
-    {
-      question: "What payment methods do you accept?",
-      answer: "We accept all major debit/credit cards, bank transfers, and USSD payments through Paystack. All transactions are secure and encrypted.",
-    },
-    {
-      question: "Can I cancel or reschedule my booking?",
-      answer: "Yes, you can cancel or reschedule up to 24 hours before departure. Visit your booking history and select the booking you want to modify.",
-    },
-    {
-      question: "How does charter service work?",
-      answer: "Submit a charter request with your vehicle type, date, and purpose. Our team will contact you within 2 hours with a quote and availability.",
-    },
-    {
-      question: "What if my package is damaged or lost?",
-      answer: "Contact our support team immediately with your waybill number. We have insurance coverage for all shipments and will assist with claims.",
-    },
-  ]
-
   return (
-    <div className="max-w-4xl mx-auto py-20 px-4">
-      <h1 className="text-4xl font-bold mb-4 text-center">Help Center</h1>
-      <p className="text-lg text-gray-700 mb-12 text-center">
-        Find answers to common questions or get in touch with our support team.
-      </p>
-
-      <div className="grid md:grid-cols-3 gap-4 mb-12">
-        <Link href="/search" className="bg-white rounded-2xl border border-gray-100 p-6 text-center hover:shadow-md transition-all">
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-            </svg>
-          </div>
-          <h3 className="font-bold">Book a Trip</h3>
-          <p className="text-sm text-gray-600">Search and book seats</p>
-        </Link>
-        <Link href="/track" className="bg-white rounded-2xl border border-gray-100 p-6 text-center hover:shadow-md transition-all">
-          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-          </div>
-          <h3 className="font-bold">Track Package</h3>
-          <p className="text-sm text-gray-600">Find your shipment</p>
-        </Link>
-        <Link href="/contact" className="bg-white rounded-2xl border border-gray-100 p-6 text-center hover:shadow-md transition-all">
-          <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <h3 className="font-bold">Contact Support</h3>
-          <p className="text-sm text-gray-600">Get in touch</p>
-        </Link>
+    <div className="min-h-screen bg-[#F8FAFC]">
+      <div className="bg-linear-to-r from-[#1E40AF] to-[#2563EB] py-14 px-4 text-center">
+        <h1 className="text-2xl font-bold text-white mb-2">Help Center</h1>
+        <p className="text-sm text-white/75">Find answers to common questions or get in touch with our support team.</p>
       </div>
 
-      <h2 className="text-2xl font-bold mb-6">Frequently Asked Questions</h2>
-      <div className="space-y-4">
-        {faqs.map((faq) => (
-          <details key={faq.question} className="bg-white rounded-2xl border border-gray-100 p-6 group">
-            <summary className="font-semibold cursor-pointer list-none flex items-center justify-between">
-              {faq.question}
-              <svg className="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </summary>
-            <p className="text-gray-600 mt-4 text-sm">{faq.answer}</p>
-          </details>
-        ))}
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        {/* Quick links */}
+        <div className="grid md:grid-cols-3 gap-4 mb-12">
+          {QUICK_LINKS.map(({ href, Icon, color, bg, title, desc }) => (
+            <Link key={href} href={href} className="bg-white rounded-2xl border border-[#E2E8F0] p-6 text-center hover:shadow-md hover:border-[#BFDBFE] transition-all">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: bg }}>
+                <Icon size={24} style={{ color }} />
+              </div>
+              <h3 className="font-bold text-[#0F172A]">{title}</h3>
+              <p className="text-sm text-[#94A3B8] mt-0.5">{desc}</p>
+            </Link>
+          ))}
+        </div>
+
+        {/* FAQs */}
+        <h2 className="text-xl font-bold text-[#0F172A] mb-5">Frequently Asked Questions</h2>
+        <div className="space-y-3">
+          {FAQS.map((faq) => (
+            <details key={faq.question} className="bg-white rounded-2xl border border-[#E2E8F0] p-5 group">
+              <summary className="font-semibold text-[#0F172A] cursor-pointer list-none flex items-center justify-between text-sm">
+                {faq.question}
+                <ChevronDown size={16} className="text-[#94A3B8] group-open:rotate-180 transition-transform shrink-0 ml-2" />
+              </summary>
+              <p className="text-[#64748B] mt-4 text-sm leading-relaxed">{faq.answer}</p>
+            </details>
+          ))}
+        </div>
       </div>
     </div>
-  )
+  );
 }

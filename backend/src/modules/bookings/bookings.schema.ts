@@ -1,4 +1,28 @@
 import { z } from "zod";
+import { paginationQuerySchema } from "../../shared/pagination";
+import { searchSchema, dateRangeSchema } from "../../shared/list-query";
+
+/**
+ * Admin/operator booking list query. All filters optional and AND-combined.
+ *  - status:    BookingStatus equality
+ *  - operatorId: admin-only — restrict to one operator's trips (ignored for operators,
+ *                who are already scoped to their own operatorId from the JWT)
+ *  - min/maxAmount: revenue band on totalAmount (naira)
+ *  - dateFrom/dateTo: createdAt range (WAT day bounds)
+ *  - search:    matches booking id, paymentRef, or the booking's user
+ *               (full name / email / phone)
+ */
+export const listBookingsQuerySchema = z.object({
+  status:     z.enum(["pending", "confirmed", "cancelled", "refunded"]).optional(),
+  operatorId: z.uuid().optional(),
+  minAmount:  z.coerce.number().int().min(0).optional(),
+  maxAmount:  z.coerce.number().int().min(0).optional(),
+  ...dateRangeSchema.shape,
+  ...searchSchema.shape,
+  ...paginationQuerySchema.shape,
+});
+
+export type ListBookingsQuery = z.infer<typeof listBookingsQuerySchema>;
 
 export const holdSchema = z.object({
   tripId:   z.uuid(),

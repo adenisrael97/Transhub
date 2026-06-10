@@ -64,10 +64,33 @@ model User {
   bookings   Booking[]
   charters   Charter[]
   waybills   Waybill[]
+  resetTokens PasswordResetToken[]
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  // Admin user/customer directory: filter by role, order by signup recency.
+  // Without this the directory (which grows to every passenger on the platform)
+  // seq-scans + sorts the whole users table on every page load.
+  @@index([role, createdAt])
   @@map("users")
+}
+
+// A single-use, time-boxed password-reset grant.
+// Owned exclusively by the `auth` module (auth.repository is the only writer).
+// We store the SHA-256 of the emailed token, never the raw token — a DB read
+// can't reconstruct a working link. usedAt marks consumption so a link can't be
+// replayed; expiresAt boxes the validity window (see PASSWORD_RESET_TTL_MS).
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // sha256 hex of the raw token
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 // A transport company's onboarding application.
@@ -94,7 +117,10 @@ model Operator {
   trips            Trip[]
   vehicles         Vehicle[]
   drivers          Driver[]
+  assignedWaybills Waybill[]  @relation("WaybillOperator")
 
+  // Admin operator list: filter by status, order by application recency.
+  @@index([status, appliedAt])
   @@map("operators")
 }
 
@@ -270,9 +296,11 @@ model PassengerInfo {
 }
 
 // A charter request: a passenger hires an entire vehicle for a private journey.
-// Flow: pending → quoted (admin sets price) → payment_pending → confirmed | cancelled.
+// Flow: pending → quote_sent → awaiting_payment → confirmed → completed | cancelled
 model Charter {
   id             String    @id @default(uuid())
+  // Human-readable ref shown in UI and emails, e.g. "CHR-20260601-A3F2B1"
+  referenceNo    String?   @unique
   passengerId    String
   passenger      User      @relation(fields: [passengerId], references: [id])
   vehicleType    String    // e.g. 'bus-33', 'coaster', 'suv' — whatever the UI sends
@@ -281,50 +309,86 @@ model Charter {
   departureAt    DateTime
   returnAt       DateTime? // null = one-way
   passengerCount Int
-  notes          String?   // purpose / special instructions
+  notes          String?   // customer-provided purpose / special instructions
   // Contact person for this charter (may differ from account holder)
   contactName    String?
   contactPhone   String?
   contactEmail   String?
   status         String    @default("pending")
-  // pending | quoted | payment_pending | confirmed | cancelled
-  quotedPrice    Decimal?  @db.Decimal(12, 2)
+  // pending | quote_sent | awaiting_payment | confirmed | completed | cancelled
+
+  // Quote fields (set by admin when sending quote)
+  quotedPrice    Decimal?  @db.Decimal(12, 2)  // final price shown to customer
+  operatorName   String?                         // transport operator admin selected
+  operatorCost   Decimal?  @db.Decimal(12, 2)  // what admin pays the operator (internal)
+  serviceFee     Decimal?  @db.Decimal(12, 2)  // TransHub platform fee (internal)
+  adminNotes     String?                         // notes from admin to customer
+
+  // Payment fields
   paymentRef     String?   @unique // Paystack reference — unique for idempotency
   paidAt         DateTime?
+  paidAmount     Decimal?  @db.Decimal(12, 2)  // confirmed amount at webhook time
+
+  // Post-payment admin confirmation fields (shown to customer after admin confirms)
+  assignedOperator String?
+  pickupInfo       String?
+  travelInfo       String?
+
+  // Completion tracking
+  completedAt    DateTime?
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   @@index([passengerId])
   @@index([status])
+  @@index([status, createdAt(sort: Desc)]) // admin list: filter by status, order recency
   @@map("charters")
 }
 
 model Waybill {
-  id             String         @id @default(uuid())
-  waybillNo      String         @unique
-  userId         String
-  user           User           @relation(fields: [userId], references: [id])
-  tripId         String?
-  trip           Trip?          @relation(fields: [tripId], references: [id], onDelete: SetNull)
-  senderName     String
-  senderPhone    String
-  recipientName  String
-  recipientPhone String
-  fromLocation   String
-  toLocation     String
-  description    String
-  weightKg       Decimal?       @db.Decimal(8, 2)
-  declaredValue  Decimal?       @db.Decimal(12, 2)
-  fee            Decimal        @db.Decimal(12, 2)
-  status         String         @default("pending")
-  paymentRef     String?
-  paidAt         DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  events         WaybillEvent[]
+  id                 String         @id @default(uuid())
+  waybillNo          String         @unique
+  userId             String
+  user               User           @relation(fields: [userId], references: [id])
+  tripId             String?
+  trip               Trip?          @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  // Transport company assigned by admin when sending the quote
+  assignedOperatorId String?
+  assignedOperator   Operator?      @relation("WaybillOperator", fields: [assignedOperatorId], references: [id], onDelete: SetNull)
+  senderName         String
+  senderPhone        String
+  recipientName      String
+  recipientPhone     String
+  fromLocation       String
+  toLocation         String
+  description        String
+  weightKg           Decimal?       @db.Decimal(8, 2)
+  declaredValue      Decimal?       @db.Decimal(12, 2)
+  // fee is set by admin when sending the quote (initially 0)
+  fee                Decimal        @default(0) @db.Decimal(12, 2)
+  quoteNote          String?
+  status             String         @default("pending")
+  paymentRef         String?
+  // Per-stage timestamps for full lifecycle audit trail
+  paidAt             DateTime?
+  quoteSentAt        DateTime?
+  droppedOffAt       DateTime?
+  pickedUpAt         DateTime?
+  inTransitAt        DateTime?
+  arrivedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  events             WaybillEvent[]
 
   @@index([waybillNo])
   @@index([status])
+  // Admin/customer waybill list: status filter + newest-first ordering in one index.
+  @@index([status, createdAt])
+  @@index([assignedOperatorId])
+  // Customer "my shipments" — list a user's own waybills, newest first.
+  @@index([userId, createdAt])
   @@map("waybills")
 }
 

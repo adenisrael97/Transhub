@@ -48,17 +48,35 @@ export default function TripDetailPage() {
   useEffect(() => {
     if (!id) return;
     const socket = connectSocket();
-    socket.emit("trip:subscribe", id);
-    socket.on("trip:capacityChanged", (payload) => {
+
+    const onCapacityChanged = (payload) => {
       if (payload.tripId === id) {
         setCapacityOverride({ isFull: payload.isFull, offlineCount: payload.offlineCount });
       }
-    });
+    };
+
+    // socket.io fires "connect" on the initial connection AND on every reconnect.
+    // Any capacity change that happened while the socket was down was missed, so
+    // re-subscribe to the room AND re-fetch the trip over HTTP to resync the
+    // authoritative seat count — otherwise a passenger could see stale availability
+    // (e.g. seats left) for a bus that filled during the gap.
+    const onConnect = () => {
+      socket.emit("trip:subscribe", id);
+      fetchTrip(id).catch(() => {});
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("trip:capacityChanged", onCapacityChanged);
+    // Cover the case where the socket is already connected when this effect runs
+    // (connect won't fire again), so the initial subscribe still happens.
+    if (socket.connected) socket.emit("trip:subscribe", id);
+
     return () => {
       socket.emit("trip:unsubscribe", id);
-      socket.off("trip:capacityChanged");
+      socket.off("trip:capacityChanged", onCapacityChanged);
+      socket.off("connect", onConnect);
     };
-  }, [id]);
+  }, [id, fetchTrip]);
 
   const availableSeats = displayTrip?.availableSeats ?? 0;
   const blocked        = displayTrip?.isFull || availableSeats === 0;
@@ -73,17 +91,20 @@ export default function TripDetailPage() {
     setHolding(true);
     try {
       const hold = await holdSeats(displayTrip.id, quantity);
-      setHold(hold.holdId, hold.expiresAt);
+      setHold(hold.holdId, hold.ttlSeconds);
       router.push("/checkout");
     } catch (err) {
       const status = err?.status ?? err?.response?.status;
       if (status === 409) {
-        const msg = err?.error?.message ?? err?.response?.data?.error?.message ?? "";
-        if (msg.includes("marked full")) {
-          toast.error("This trip has been marked full by the operator.");
-        } else {
-          toast.error("Seats just sold out. Please reduce the number or pick another bus.");
-        }
+        // Backend now returns a structured code so we can show targeted copy
+        // instead of string-matching the message.
+        const code = err?.error?.code ?? err?.response?.data?.error?.code;
+        const messages = {
+          TRIP_FULL:         "This trip has been marked full by the operator.",
+          INSUFFICIENT_SEATS:"Seats just sold out. Please reduce the number or pick another bus.",
+          TRIP_UNAVAILABLE:  "This trip is no longer available for booking.",
+        };
+        toast.error(messages[code] ?? "Seats just sold out. Please reduce the number or pick another bus.");
         // Re-fetch so the seats-left count reflects the latest availability
         fetchTrip(id).catch(() => {});
       } else if (status === 401) {

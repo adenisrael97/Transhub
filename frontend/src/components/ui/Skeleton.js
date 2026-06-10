@@ -1,50 +1,79 @@
 'use client';
 
-/**
- * Reusable loading skeleton for placeholder content.
- *
- * Usage:
- *   <Skeleton className="h-6 w-40" />               — single bar
- *   <Skeleton lines={4} />                           — 4 text lines
- *   <Skeleton variant="card" />                      — card placeholder
- *   <Skeleton variant="table" rows={5} cols={4} />   — table placeholder
- */
-export default function Skeleton({ className = '', variant = 'bar', lines = 1, rows = 5, cols = 4 }) {
-  const pulse = 'animate-pulse bg-gray-200 rounded-lg';
+const pulse = 'animate-pulse bg-[#E2E8F0] rounded-lg';
 
-  if (variant === 'card') {
-    return (
-      <div className={`rounded-2xl border border-gray-100 p-6 space-y-4 ${className}`}>
-        <div className={`${pulse} h-10 w-10 rounded-xl`} />
-        <div className={`${pulse} h-6 w-1/2`} />
-        <div className={`${pulse} h-4 w-3/4`} />
-        <div className={`${pulse} h-4 w-1/3`} />
+export function SkeletonLine({ width = '100%', height = 'h-4', className = '' }) {
+  return <div className={`${pulse} ${height} ${className}`} style={{ width }} />;
+}
+
+export function SkeletonCard({ className = '' }) {
+  return (
+    <div className={`bg-white rounded-2xl border border-[#E2E8F0] p-5 space-y-3 ${className}`}>
+      <div className={`${pulse} h-11 w-11 rounded-full`} />
+      <div className={`${pulse} h-7 w-1/2`} />
+      <div className={`${pulse} h-3.5 w-3/4`} />
+    </div>
+  );
+}
+
+export function SkeletonStatCard({ className = '' }) {
+  return (
+    <div className={`bg-white rounded-2xl border border-[#E2E8F0] p-5 space-y-3 ${className}`}>
+      <div className="flex items-center justify-between">
+        <div className={`${pulse} h-11 w-11 rounded-full`} />
+        <div className={`${pulse} h-4 w-16 rounded-full`} />
       </div>
-    );
-  }
+      <div className={`${pulse} h-8 w-24`} />
+      <div className={`${pulse} h-3 w-32`} />
+    </div>
+  );
+}
 
-  if (variant === 'table') {
-    return (
-      <div className={`rounded-2xl border border-gray-100 overflow-hidden ${className}`}>
-        {/* Header */}
-        <div className="flex gap-4 px-6 py-4 border-b border-gray-50">
-          {Array.from({ length: cols }).map((_, i) => (
-            <div key={i} className={`${pulse} h-4 flex-1`} />
-          ))}
+export function SkeletonTripCard({ className = '' }) {
+  return (
+    <div className={`bg-white rounded-2xl border border-[#E2E8F0] p-4 ${className}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 space-y-2">
+          <div className={`${pulse} h-5 w-40`} />
+          <div className={`${pulse} h-3.5 w-24`} />
         </div>
-        {/* Rows */}
-        {Array.from({ length: rows }).map((_, r) => (
-          <div key={r} className="flex gap-4 px-6 py-4 border-b border-gray-50 last:border-b-0">
-            {Array.from({ length: cols }).map((_, c) => (
-              <div key={c} className={`${pulse} h-4 flex-1`} />
-            ))}
-          </div>
+        <div className="space-y-2 text-right">
+          <div className={`${pulse} h-6 w-20 ml-auto`} />
+          <div className={`${pulse} h-3.5 w-16 ml-auto`} />
+        </div>
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <div className={`${pulse} h-4 w-24 rounded-full`} />
+        <div className={`${pulse} h-4 w-20 rounded-full`} />
+        <div className={`${pulse} h-8 w-24 rounded-xl ml-auto`} />
+      </div>
+    </div>
+  );
+}
+
+export function SkeletonTable({ rows = 5, cols = 4, className = '' }) {
+  return (
+    <div className={`bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden ${className}`}>
+      <div className="flex gap-4 px-5 py-3.5 bg-[#F8FAFC] border-b border-[#E2E8F0]">
+        {Array.from({ length: cols }).map((_, i) => (
+          <div key={i} className={`${pulse} h-3.5 flex-1`} />
         ))}
       </div>
-    );
-  }
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex gap-4 px-5 py-4 border-b border-[#F1F5F9] last:border-0">
+          {Array.from({ length: cols }).map((_, c) => (
+            <div key={c} className={`${pulse} h-4 flex-1`} style={{ opacity: 1 - r * 0.08 }} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  // Default: text lines
+export default function Skeleton({ className = '', variant = 'bar', lines = 1, rows = 5, cols = 4 }) {
+  if (variant === 'card')  return <SkeletonCard className={className} />;
+  if (variant === 'table') return <SkeletonTable rows={rows} cols={cols} className={className} />;
+
   return (
     <div className={`space-y-2.5 ${className}`}>
       {Array.from({ length: lines }).map((_, i) => (
@@ -58,25 +87,19 @@ export default function Skeleton({ className = '', variant = 'bar', lines = 1, r
   );
 }
 
-/**
- * Full-page loading state. Use as loading.js in App Router.
- */
 export function PageSkeleton() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-8">
-      {/* Title */}
       <div className="space-y-2">
-        <Skeleton className="h-7 w-48" />
-        <Skeleton className="h-4 w-32" />
+        <div className={`${pulse} h-7 w-48`} />
+        <div className={`${pulse} h-4 w-32`} />
       </div>
-      {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} variant="card" />
+          <SkeletonStatCard key={i} />
         ))}
       </div>
-      {/* Table */}
-      <Skeleton variant="table" rows={6} cols={5} />
+      <SkeletonTable rows={6} cols={5} />
     </div>
   );
 }

@@ -29,4 +29,19 @@ export const authController = {
     const user = await authService.me(req.user.id, req.user.role);
     res.json({ user });
   },
+
+  async forgotPassword(req: Request, res: Response): Promise<void> {
+    await authService.requestPasswordReset(req.body.email);
+    // Constant response regardless of whether the email exists — no enumeration.
+    res.status(200).json({
+      message: "If an account with that email exists, a password reset link has been sent.",
+    });
+  },
+
+  async resetPassword(req: Request, res: Response): Promise<void> {
+    await authService.resetPassword(req.body.token, req.body.password);
+    res.status(200).json({
+      message: "Your password has been reset. You can now log in with your new password.",
+    });
+  },
 };

@@ -18,6 +18,7 @@ import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env";
 import { logger } from "./infra/logger";
 import { requestId } from "./middleware/request-id";
+import { observability } from "./middleware/observability";
 import { errorHandler, notFoundHandler } from "./middleware/error";
 import { apiLimiter, webhookLimiter } from "./middleware/rate-limit";
 import { getSpec } from "./openapi";
@@ -34,6 +35,7 @@ import { analyticsRouter } from "./modules/analytics";
 import { vehiclesRouter }  from "./modules/vehicles";
 import { chartersRouter }  from "./modules/charters";
 import { waybillsRouter }  from "./modules/waybills";
+import { transactionsRouter } from "./modules/transactions";
 import { contactRouter }   from "./modules/contact";
 
 export function createApp(): Express {
@@ -102,6 +104,8 @@ export function createApp(): Express {
   app.use(express.json());
   app.use(requestId);
   app.use(pinoHttp({ logger, genReqId: (req) => (req as express.Request).id }));
+  // Sentry per-request context + slow-request / large-payload signals.
+  app.use(observability);
   // Global API limiter. NOTE: this runs before any route's authenticate(), so
   // req.user is not yet set — every request here is keyed by client IP. Per-user
   // keying only takes effect on the stricter per-route limiters that sit after
@@ -121,6 +125,7 @@ export function createApp(): Express {
   app.use("/vehicles",  vehiclesRouter);
   app.use("/charters",  chartersRouter);
   app.use("/waybills",  waybillsRouter);
+  app.use("/transactions", transactionsRouter);
   app.use("/contact",   contactRouter);
 
   // Swagger UI — dev/staging only. Never expose in production.

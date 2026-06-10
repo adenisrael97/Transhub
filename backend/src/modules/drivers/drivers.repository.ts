@@ -6,15 +6,43 @@
  * It returns the raw Driver (with password hash) intentionally — the service
  * layer strips the hash before returning data to callers.
  */
-import type { Driver } from "@prisma/client";
+import type { Driver, Prisma } from "@prisma/client";
 import { prisma } from "../../infra/db/client";
-import type { CreateDriverInput, UpdateDriverInput } from "./drivers.schema";
+import { toSkipTake, type PaginationQuery, type Page } from "../../shared/pagination";
+import type { UpdateDriverInput } from "./drivers.schema";
 
 export type DriverDTO = Omit<Driver, "password">;
+
+/** Driver row enriched with its operator's company name — for the admin directory. */
+export type AdminDriverDTO = DriverDTO & { operatorName: string };
+
+/** Driver list filters (see listDriversQuerySchema). operatorId scopes to one fleet. */
+export interface DriverListFilter {
+  operatorId?: string;
+  isActive?:   boolean;
+  search?:     string;
+}
 
 function omitPassword(driver: Driver): DriverDTO {
   const { password: _password, ...safe } = driver;
   return safe;
+}
+
+function buildDriverWhere(filter: DriverListFilter): Prisma.DriverWhereInput {
+  const and: Prisma.DriverWhereInput[] = [];
+  if (filter.operatorId) and.push({ operatorId: filter.operatorId });
+  if (filter.isActive !== undefined) and.push({ isActive: filter.isActive });
+  if (filter.search) {
+    const s = filter.search;
+    and.push({
+      OR: [
+        { fullName:  { contains: s, mode: "insensitive" } },
+        { phone:     { contains: s, mode: "insensitive" } },
+        { licenseNo: { contains: s, mode: "insensitive" } },
+      ],
+    });
+  }
+  return and.length ? { AND: and } : {};
 }
 
 export const driversRepository = {
@@ -43,6 +71,30 @@ export const driversRepository = {
       orderBy: { createdAt: "desc" },
     });
     return drivers.map(omitPassword);
+  },
+
+  /**
+   * A page of drivers matching the filter, newest first, each with the operator's
+   * company name. The operator name comes from a single relation `select` (one
+   * query, no N+1). Used by both the operator fleet view (scoped by operatorId)
+   * and the admin driver directory (all operators).
+   */
+  async findPaginated(filter: DriverListFilter, pagination: PaginationQuery): Promise<Page<AdminDriverDTO>> {
+    const where = buildDriverWhere(filter);
+    const [rows, total] = await prisma.$transaction([
+      prisma.driver.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        ...toSkipTake(pagination),
+        include: { operator: { select: { companyName: true } } },
+      }),
+      prisma.driver.count({ where }),
+    ]);
+    const items: AdminDriverDTO[] = rows.map((d) => {
+      const { password: _pw, operator, ...safe } = d;
+      return { ...safe, operatorName: operator.companyName };
+    });
+    return { items, total };
   },
 
   /** Find by id, optionally scoped to an operator (returns null if not owned). */

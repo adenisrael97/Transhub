@@ -1,95 +1,137 @@
 "use client";
-import { useState } from "react";
+import { useCallback } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
+import { Ticket, ArrowRight, MapPin } from "lucide-react";
 import Button from "@/components/ui/Button";
-import FilterTabs from "@/components/ui/FilterTabs";
+import SearchInput from "@/components/shared/SearchInput";
+import Pagination from "@/components/shared/Pagination";
 import { STATUS_BADGE } from "@/lib/constants";
-import { capitalize } from "@/lib/utils";
+import { capitalize, formatDateLong, formatTime } from "@/lib/utils";
+import AuthGuard from "@/components/shared/AuthGuard";
+import { useServerList } from "@/hooks/useServerList";
+import { fetchTickets } from "@/services/tickets";
 
-const MOCK_TICKETS = [
-  { id: "TH-2026-001", from: "Lagos", to: "Abuja", date: "26 Mar 2026", time: "6:00 AM", seat: "A1", operator: "Peace Mass Transit", status: "upcoming", price: 9500 },
-  { id: "TH-2026-002", from: "Abuja", to: "Lagos", date: "2 Apr 2026", time: "8:00 AM", seat: "B3", operator: "GUO Transport", status: "upcoming", price: 11000 },
-  { id: "TH-2025-099", from: "Ibadan", to: "Lagos", date: "10 Jan 2026", time: "7:00 AM", seat: "C2", operator: "ABC Transport", status: "completed", price: 4500 },
-  { id: "TH-2025-071", from: "Lagos", to: "Enugu", date: "20 Dec 2025", time: "5:30 AM", seat: "D4", operator: "Peace Mass Transit", status: "completed", price: 12000 },
-];
+function shortRef(ref) {
+  if (!ref) return "—";
+  return ref.length > 16 ? `${ref.slice(0, 16)}…` : ref;
+}
 
-export default function TicketsPage() {
-  const [filter, setFilter] = useState("all");
+function TicketsSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="bg-white rounded-2xl border border-[#E2E8F0] p-6 animate-pulse">
+          <div className="flex justify-between mb-5">
+            <div className="h-6 w-40 bg-[#F1F5F9] rounded" />
+            <div className="h-6 w-20 bg-[#F1F5F9] rounded-full" />
+          </div>
+          <div className="h-4 w-56 bg-[#F1F5F9] rounded mb-3" />
+          <div className="h-4 w-32 bg-[#F1F5F9] rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  const filtered = MOCK_TICKETS.filter((t) => filter === "all" || t.status === filter);
+function TicketsContent() {
+  const selectTickets = useCallback((res) => res.tickets ?? [], []);
+  const {
+    items: tickets, pagination, loading, error,
+    page, setPage, searchInput, setSearchInput,
+  } = useServerList({ fetcher: fetchTickets, select: selectTickets, limit: 10 });
 
   return (
-    <div className="min-h-screen bg-[#F8FAFF]">
+    <div className="min-h-screen bg-[#F8FAFC]">
       <div className="max-w-3xl mx-auto px-4 py-10">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">My Tickets</h1>
-          <Link href="/search">
-            <Button size="sm">+ Book New Trip</Button>
-          </Link>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-[#0F172A]">My Tickets</h1>
+          <Button as={Link} href="/search" size="sm" rightIcon={<ArrowRight size={14} />}>Book New Trip</Button>
         </div>
 
-        {/* Filter tabs */}
-        <div className="mb-6 w-fit">
-          <FilterTabs items={["all", "upcoming", "completed"]} active={filter} onChange={setFilter} />
+        <div className="mb-6">
+          <SearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search by route or payment reference…"
+            className="w-full sm:w-80"
+          />
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
-            <p className="text-5xl mb-4">🎫</p>
-            <p className="text-lg font-medium">No tickets found</p>
-            <p className="text-sm mt-2 mb-6">Book a trip to see your tickets here</p>
-            <Link href="/search"><Button>Search Trips</Button></Link>
+        {loading ? (
+          <TicketsSkeleton />
+        ) : error ? (
+          <div className="text-center py-20">
+            <p className="text-lg font-semibold text-[#0F172A]">{error}</p>
+            <p className="text-sm text-[#94A3B8] mt-1">Please try again in a moment.</p>
+          </div>
+        ) : tickets.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="w-16 h-16 bg-[#EFF6FF] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Ticket size={28} className="text-[#2563EB]" />
+            </div>
+            <p className="text-lg font-semibold text-[#0F172A]">You have no tickets yet.</p>
+            <p className="text-sm text-[#94A3B8] mt-1 mb-6">Book a trip to see your tickets here.</p>
+            <Button as={Link} href="/search">Search Trips</Button>
           </div>
         ) : (
           <div className="space-y-4">
-            {filtered.map((ticket) => (
-              <div key={ticket.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                {/* Ticket header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-dashed border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400 font-mono">{ticket.id}</span>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_BADGE[ticket.status]}`}>
-                      {capitalize(ticket.status)}
+            {tickets.map((t, i) => (
+              <motion.div
+                key={t.bookingId}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden"
+              >
+                <div className="px-6 py-5">
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <h2 className="text-xl font-bold text-[#0F172A]">
+                      {t.from} <span className="text-[#94A3B8] font-normal">→</span> {t.to}
+                    </h2>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_BADGE[t.status] ?? ""}`}>
+                      {capitalize(t.status)}
                     </span>
                   </div>
-                  <span className="text-sm font-bold text-blue-600">₦{ticket.price.toLocaleString()}</span>
-                </div>
 
-                {/* Route */}
-                <div className="px-6 py-5">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-900">{ticket.time}</p>
-                      <p className="text-sm text-gray-500">{ticket.from}</p>
-                    </div>
-                    <div className="flex-1 flex flex-col items-center gap-1">
-                      <div className="w-full flex items-center gap-1">
-                        <div className="h-px flex-1 bg-gray-200" />
-                        <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24">
-                          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
-                        <div className="h-px flex-1 bg-gray-200" />
-                      </div>
-                      <p className="text-xs text-gray-400">{ticket.date}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-900">🏁</p>
-                      <p className="text-sm text-gray-500">{ticket.to}</p>
-                    </div>
-                  </div>
+                  <p className="text-sm text-[#64748B] mb-4">
+                    {formatDateLong(t.departureTime)} · {formatTime(t.departureTime)}
+                  </p>
 
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Seat <strong className="text-gray-900">{ticket.seat}</strong> · {ticket.operator}</span>
-                    {ticket.status === "upcoming" && (
-                      <button className="text-blue-600 font-semibold text-xs hover:underline">View QR Code</button>
-                    )}
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm border-t border-dashed border-[#E2E8F0] pt-4">
+                    <span className="flex items-center gap-1.5 text-[#94A3B8]">
+                      <MapPin size={13} /> Seats
+                      <strong className="text-[#0F172A]">{t.seatCount} (open seating)</strong>
+                    </span>
+                    <span className="text-[#94A3B8]">
+                      Amount paid <strong className="text-[#16A34A]">₦{t.totalAmount.toLocaleString()}</strong>
+                    </span>
+                    <span className="text-xs text-[#94A3B8] font-mono">REF: {shortRef(t.paymentRef)}</span>
                   </div>
                 </div>
-              </div>
+
+                <div className="px-6 py-3.5 bg-[#F8FAFC] border-t border-[#E2E8F0] flex justify-end">
+                  <Button as={Link} href={`/tickets/${t.bookingId}`} size="sm" variant="outline" rightIcon={<ArrowRight size={14} />}>
+                    View Ticket
+                  </Button>
+                </div>
+              </motion.div>
             ))}
           </div>
         )}
+
+        {!loading && !error && tickets.length > 0 && (
+          <Pagination pagination={pagination} onPageChange={setPage} loading={loading} />
+        )}
       </div>
     </div>
+  );
+}
+
+export default function TicketsPage() {
+  return (
+    <AuthGuard>
+      <TicketsContent />
+    </AuthGuard>
   );
 }

@@ -1,28 +1,27 @@
 'use client';
 
-/**
- * Reusable button component with multiple variants, sizes, and loading state.
- * Variants: primary, secondary, success, danger, warning, ghost, outline.
- * Sizes: xs, sm, md, lg.
- */
+import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
+
 const variants = {
-  primary:  'bg-blue-600 hover:bg-blue-700 text-white shadow-sm',
-  secondary:'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700',
-  success:  'bg-green-600 hover:bg-green-700 text-white',
-  danger:   'bg-red-600 hover:bg-red-700 text-white',
-  warning:  'bg-amber-500 hover:bg-amber-600 text-white',
-  ghost:    'hover:bg-gray-100 text-gray-600',
-  outline:  'border border-blue-600 text-blue-600 hover:bg-blue-50',
+  primary:   'bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-sm hover:shadow-[0_8px_24px_rgba(37,99,235,.25)]',
+  secondary: 'bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#475569]',
+  outline:   'border border-[#2563EB] text-[#2563EB] hover:bg-[#EFF6FF]',
+  ghost:     'hover:bg-[#F1F5F9] text-[#475569]',
+  danger:    'bg-[#DC2626] hover:bg-[#B91C1C] text-white',
+  success:   'bg-[#16A34A] hover:bg-[#15803D] text-white',
+  warning:   'bg-[#D97706] hover:bg-[#B45309] text-white',
 };
 
 const sizes = {
-  xs: 'px-2.5 py-1 text-xs',
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base',
+  xs: 'h-7 px-2.5 text-xs gap-1',
+  sm: 'h-8 px-3 text-sm gap-1.5',
+  md: 'h-10 px-4 text-sm gap-2',
+  lg: 'h-12 px-6 text-base gap-2',
 };
 
 export default function Button({
+  as: Component = 'button',
   children,
   variant   = 'primary',
   size      = 'md',
@@ -30,24 +29,47 @@ export default function Button({
   disabled  = false,
   fullWidth = false,
   className = '',
+  leftIcon  = null,
+  rightIcon = null,
   ...props
 }) {
+  const classes = [
+    'inline-flex items-center justify-center rounded-xl font-semibold transition-all duration-200',
+    'focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:ring-offset-2',
+    'disabled:opacity-50 disabled:cursor-not-allowed',
+    variants[variant] ?? variants.primary,
+    sizes[size] ?? sizes.md,
+    fullWidth ? 'w-full' : '',
+    className,
+  ].join(' ');
+
+  const content = (
+    <>
+      {loading && <Loader2 className="animate-spin shrink-0" size={size === 'xs' || size === 'sm' ? 14 : 16} />}
+      {leftIcon && <span className="shrink-0">{leftIcon}</span>}
+      {children}
+      {rightIcon && <span className="shrink-0">{rightIcon}</span>}
+    </>
+  );
+
+  // Polymorphic: render as a custom element/component (e.g. next/link) with
+  // button styling. Skips the motion/disabled props that only apply to <button>.
+  if (Component !== 'button') {
+    return (
+      <Component className={classes} {...props}>
+        {content}
+      </Component>
+    );
+  }
+
   return (
-    <button
+    <motion.button
+      whileTap={!disabled && !loading ? { scale: 0.97 } : {}}
       disabled={disabled || loading}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200
-        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${variants[variant]} ${sizes[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
+      className={classes}
       {...props}
     >
-      {loading && (
-        <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-        </svg>
-      )}
-      {children}
-    </button>
+      {content}
+    </motion.button>
   );
 }

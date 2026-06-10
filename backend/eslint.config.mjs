@@ -55,6 +55,14 @@ export default tseslint.config(
             from: { type: ["module", "middleware", "app", "infra", "shared", "config"] },
             allow: { to: { type: "module", internalPath: "index.ts" } },
           },
+          // Carve-out: *.openapi.ts files contain only documentation side-effects
+          // (no business logic, no exports used by other modules). The app-layer
+          // openapi.ts imports them explicitly for spec generation. This is a
+          // principled exception — only the app layer may use it.
+          {
+            from: { type: "app" },
+            allow: { to: { type: "module", internalPath: "*.openapi.ts" } },
+          },
 
           // Rule #3 (macro): foundational layers must not reach up into modules.
           {

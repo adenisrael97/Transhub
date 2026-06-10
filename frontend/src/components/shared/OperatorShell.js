@@ -3,16 +3,19 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Bus, Ticket, Truck, User, Users } from 'lucide-react';
+import { LayoutDashboard, Bus, Ticket, Truck, User, Users, Settings, Package, Receipt } from 'lucide-react';
 import AuthGuard from '@/components/shared/AuthGuard';
 
 const NAV = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '/operator'          },
-  { label: 'My Trips',  icon: Bus,             href: '/operator/trips'    },
-  { label: 'Drivers',   icon: Users,           href: '/operator/drivers'  },
-  { label: 'Bookings',  icon: Ticket,          href: '/operator/bookings' },
-  { label: 'Fleet',     icon: Truck,           href: '/operator/fleet'    },
-  { label: 'Profile',   icon: User,            href: '/operator/profile'  },
+  { label: 'Dashboard',    icon: LayoutDashboard, href: '/operator'              },
+  { label: 'My Trips',     icon: Bus,             href: '/operator/trips'        },
+  { label: 'Drivers',      icon: Users,           href: '/operator/drivers'      },
+  { label: 'Bookings',     icon: Ticket,          href: '/operator/bookings'     },
+  { label: 'Waybills',     icon: Package,         href: '/operator/waybills'     },
+  { label: 'Transactions', icon: Receipt,         href: '/operator/transactions' },
+  { label: 'Fleet',        icon: Truck,           href: '/operator/fleet'        },
+  { label: 'Profile',      icon: User,            href: '/operator/profile'      },
+  { label: 'Settings',     icon: Settings,        href: '/operator/settings'     },
 ];
 
 export default function OperatorShell({ children }) {

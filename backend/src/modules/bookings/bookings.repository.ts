@@ -1,15 +1,26 @@
 /**
- * Bookings + BookedSeats data access — the ONLY place that touches the
- * `bookings`, `booked_seats`, and `passenger_info` tables.
+ * Bookings data access — the ONLY place that touches the `bookings`,
+ * `booked_seats`, and `passenger_info` tables.
  *
- * confirmSeats uses raw SELECT … FOR UPDATE so concurrent transactions
- * serialise at the database level — this is what prevents double-booking.
+ * Seat-level operations (hold, lock, release) have moved to the inventory
+ * module which is the sole owner of the `seats` table.
  */
-import { Prisma } from "@prisma/client";
+import { Prisma, type BookingStatus } from "@prisma/client";
 import { prisma } from "../../infra/db/client";
-import { ConflictError } from "../../shared/errors";
 import { toSkipTake, type PaginationQuery, type Page } from "../../shared/pagination";
+import { toDateRange, toNumberRange } from "../../shared/list-query";
 import type { PassengerInfoInput } from "./bookings.schema";
+
+/** Admin/operator booking list filters (see listBookingsQuerySchema). */
+export interface BookingListFilter {
+  status?:     string;
+  operatorId?: string;
+  minAmount?:  number;
+  maxAmount?:  number;
+  dateFrom?:   string;
+  dateTo?:     string;
+  search?:     string;
+}
 
 type Tx = Prisma.TransactionClient;
 
@@ -41,6 +52,7 @@ export interface BookingDTO {
   seats:       BookedSeatDTO[];
   passengers:  PassengerInfoDTO[];
   trip: {
+    operatorId:    string;
     from:          string;
     to:            string;
     departureTime: string;
@@ -66,6 +78,7 @@ const BOOKING_WITH_ALL = {
   passengers: true,
   trip: {
     select: {
+      operatorId:    true,
       from:          true,
       to:            true,
       departureTime: true,
@@ -98,6 +111,7 @@ function toDTO(raw: RawBooking): BookingDTO {
     })),
     trip: raw.trip
       ? {
+          operatorId:    raw.trip.operatorId,
           from:          raw.trip.from,
           to:            raw.trip.to,
           departureTime: raw.trip.departureTime.toISOString(),
@@ -109,101 +123,61 @@ function toDTO(raw: RawBooking): BookingDTO {
 }
 
 // ---------------------------------------------------------------------------
+// Filter → Prisma WHERE builder (shared by admin + operator list paths)
+// ---------------------------------------------------------------------------
+/**
+ * Translate a BookingListFilter into a Prisma WHERE. The `search` term is matched
+ * (case-insensitive) against booking id / paymentRef and the related user's
+ * fullName / email / phone — the spec's "Booking ID, User Name, User Email, Phone,
+ * Transaction Reference" search. Booking ids are stored as text (String @id), so
+ * `contains` works for prefix/substring matches of the short id shown in the UI.
+ */
+function buildBookingWhere(filter: BookingListFilter): Prisma.BookingWhereInput {
+  const and: Prisma.BookingWhereInput[] = [];
+
+  if (filter.status) and.push({ status: filter.status as BookingStatus });
+  if (filter.operatorId) and.push({ trip: { operatorId: filter.operatorId } });
+
+  const amount = toNumberRange(filter.minAmount, filter.maxAmount);
+  if (amount) and.push({ totalAmount: amount });
+
+  const created = toDateRange(filter.dateFrom, filter.dateTo);
+  if (created) and.push({ createdAt: created });
+
+  if (filter.search) {
+    const s = filter.search;
+    and.push({
+      OR: [
+        { id:         { contains: s, mode: "insensitive" } },
+        { paymentRef: { contains: s, mode: "insensitive" } },
+        { user: { fullName: { contains: s, mode: "insensitive" } } },
+        { user: { email:    { contains: s, mode: "insensitive" } } },
+        { user: { phone:    { contains: s, mode: "insensitive" } } },
+        { trip: { from: { contains: s, mode: "insensitive" } } },
+        { trip: { to:   { contains: s, mode: "insensitive" } } },
+      ],
+    });
+  }
+
+  return and.length ? { AND: and } : {};
+}
+
+// ---------------------------------------------------------------------------
 // Repository
 // ---------------------------------------------------------------------------
 export const bookingsRepository = {
   /**
-   * Atomically claim up to `quantity` available seat-slots for this trip and
-   * transition them available → held, stamping heldUntil/heldBy.
-   *
-   * Seatless model: the passenger asks for a COUNT, not specific labels, so the
-   * server picks any free rows. `FOR UPDATE SKIP LOCKED` is what makes this
-   * race-free: two concurrent claims each lock a DISJOINT set of rows (the loser
-   * skips the rows the winner just locked instead of blocking on them), so total
-   * holds can never exceed capacity — no oversell. Returns the claimed seat IDs;
-   * if fewer than `quantity` come back the trip is (nearly) full and the caller
-   * rolls back with a 409.
+   * Create a confirmed booking + BookedSeat junction rows + optional passenger
+   * info. Seat locking must have already been performed by inventoryService
+   * before calling this method (seats are already marked 'booked').
+   * Must run inside a caller-supplied transaction.
    */
-  async claimAvailableSeats(
-    tripId: string,
-    quantity: number,
-    userId: string,
-    heldUntil: Date,
-    tx: Tx
-  ): Promise<string[]> {
-    const rows = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM seats
-      WHERE  "tripId" = ${tripId} AND status = 'available'
-      ORDER BY label
-      LIMIT  ${quantity}
-      FOR UPDATE SKIP LOCKED
-    `;
-    if (rows.length === 0) return [];
-
-    const ids = rows.map((r) => r.id);
-    await tx.seat.updateMany({
-      where: { id: { in: ids } },
-      data:  { status: "held", heldUntil, heldBy: userId },
-    });
-    return ids;
-  },
-
-  /**
-   * The seat IDs this user currently holds for a trip — the authoritative set
-   * used by payment initialization to compute the amount and build the webhook
-   * metadata. Reads the DB (not Redis): a seat counts only if still 'held',
-   * stamped with this userId, and not past its expiry.
-   */
-  async idsHeldBy(tripId: string, userId: string, now: Date): Promise<string[]> {
-    const rows = await prisma.seat.findMany({
-      where:  { tripId, status: "held", heldBy: userId, heldUntil: { gt: now } },
-      select: { id: true },
-    });
-    return rows.map((r) => r.id);
-  },
-
-  /**
-   * Safety net: reclaim seats stuck in 'held' past their expiry.
-   */
-  async releaseExpiredHolds(now: Date): Promise<number> {
-    const result = await prisma.seat.updateMany({
-      where: { status: "held", heldUntil: { lt: now } },
-      data:  { status: "available", heldUntil: null, heldBy: null },
-    });
-    return result.count;
-  },
-
-  /**
-   * Core confirm — must run inside a caller-supplied transaction.
-   *
-   * 1. SELECT … FOR UPDATE acquires row locks so concurrent confirms
-   *    for the same seats serialise here (one waits while the other runs).
-   * 2. If fewer rows are locked than requested, at least one seat was taken.
-   * 3. Bulk-update to 'booked' + create the Booking + BookedSeats + PassengerInfo rows.
-   */
-  async confirmSeats(
+  async createBookingRecord(
     tripId:      string,
     seatIds:     string[],
     bookingData: { userId: string; totalAmount: number; paymentRef: string; passengers?: PassengerInfoInput[] },
     tx:          Tx
   ): Promise<BookingDTO> {
-    const lockedRows = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM seats
-      WHERE  "tripId" = ${tripId}
-      AND    id IN (${Prisma.join(seatIds)})
-      AND    (status = 'available' OR (status = 'held' AND "heldBy" = ${bookingData.userId}))
-      FOR UPDATE
-    `;
-
-    if (lockedRows.length < seatIds.length) {
-      throw new ConflictError("One or more seats are no longer available");
-    }
-
-    await tx.seat.updateMany({
-      where: { id: { in: seatIds } },
-      data:  { status: "booked", heldUntil: null, heldBy: null },
-    });
-
     const booking = await tx.booking.create({
       data: {
         userId:      bookingData.userId,
@@ -254,25 +228,35 @@ export const bookingsRepository = {
     return trip?.price ?? null;
   },
 
-  /** A page of all bookings, newest first (admin view). */
-  async findAll(pagination: PaginationQuery): Promise<Page<BookingDTO>> {
+  /** A page of all bookings, newest first, with optional filters (admin view). */
+  async findAll(filter: BookingListFilter, pagination: PaginationQuery): Promise<Page<BookingDTO>> {
+    const where = buildBookingWhere(filter);
     const [bookings, total] = await prisma.$transaction([
       prisma.booking.findMany({
+        where,
         include: BOOKING_WITH_ALL,
         orderBy: { createdAt: "desc" },
         ...toSkipTake(pagination),
       }),
-      prisma.booking.count(),
+      prisma.booking.count({ where }),
     ]);
     return { items: bookings.map(toDTO), total };
   },
 
   /**
-   * All bookings for trips owned by the given operator, newest first.
-   * Used by the operator bookings dashboard.
+   * A page of bookings for trips owned by the given operator, newest first.
+   * The operator scope is enforced here (not via the filter) so an operator can
+   * never widen their view; the other filters apply within their own bookings.
    */
-  async findByOperator(operatorId: string, pagination: PaginationQuery): Promise<Page<BookingDTO>> {
-    const where = { trip: { operatorId } };
+  async findByOperator(
+    operatorId: string,
+    filter: BookingListFilter,
+    pagination: PaginationQuery
+  ): Promise<Page<BookingDTO>> {
+    // Force the operator scope; ignore any operatorId the caller put in the filter.
+    const where: Prisma.BookingWhereInput = {
+      AND: [{ trip: { operatorId } }, buildBookingWhere({ ...filter, operatorId: undefined })],
+    };
     const [bookings, total] = await prisma.$transaction([
       prisma.booking.findMany({
         where,
@@ -294,16 +278,23 @@ export const bookingsRepository = {
     return booking ? toDTO(booking) : null;
   },
 
-  /** A page of the passenger's own booking history, newest first. */
-  async findByUser(userId: string, pagination: PaginationQuery): Promise<Page<BookingDTO>> {
+  /** A page of the passenger's own booking history, newest first, with filters. */
+  async findByUser(
+    userId: string,
+    filter: BookingListFilter,
+    pagination: PaginationQuery
+  ): Promise<Page<BookingDTO>> {
+    const where: Prisma.BookingWhereInput = {
+      AND: [{ userId }, buildBookingWhere({ ...filter, operatorId: undefined })],
+    };
     const [bookings, total] = await prisma.$transaction([
       prisma.booking.findMany({
-        where:   { userId },
+        where,
         include: BOOKING_WITH_ALL,
         orderBy: { createdAt: "desc" },
         ...toSkipTake(pagination),
       }),
-      prisma.booking.count({ where: { userId } }),
+      prisma.booking.count({ where }),
     ]);
     return { items: bookings.map(toDTO), total };
   },
@@ -318,12 +309,13 @@ export const bookingsRepository = {
   },
 
   /**
-   * All confirmed/pending bookings for a trip, with passenger details.
-   * Used by the driver dashboard and operator route view.
+   * All CONFIRMED bookings for a trip, with passenger details.
+   * Used by the driver dashboard and operator route view. Deliberately excludes
+   * 'pending' bookings: a driver must only board passengers who have paid.
    */
   async findPassengersByTripId(tripId: string): Promise<TripPassengerDTO[]> {
     const bookings = await prisma.booking.findMany({
-      where:   { tripId, status: { in: ["confirmed", "pending"] } },
+      where:   { tripId, status: "confirmed" },
       include: {
         seats:      { include: { seat: { select: { label: true } } } },
         passengers: true,

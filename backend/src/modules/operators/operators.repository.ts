@@ -8,7 +8,7 @@
 import type { Operator, Prisma } from "@prisma/client";
 import { prisma } from "../../infra/db/client";
 import { toSkipTake, type PaginationQuery, type Page } from "../../shared/pagination";
-import type { RegisterOperatorInput } from "./operators.schema";
+import type { RegisterOperatorInput, UpdateOperatorProfileInput } from "./operators.schema";
 
 type Tx = Prisma.TransactionClient;
 
@@ -22,10 +22,23 @@ export const operatorsRepository = {
   },
 
   async findAll(
-    filter: { status?: "pending" | "approved" | "declined" },
+    filter: { status?: "pending" | "approved" | "declined"; search?: string },
     pagination: PaginationQuery
   ): Promise<Page<Operator>> {
-    const where = filter.status ? { status: filter.status } : undefined;
+    const and: Prisma.OperatorWhereInput[] = [];
+    if (filter.status) and.push({ status: filter.status });
+    if (filter.search) {
+      const s = filter.search;
+      and.push({
+        OR: [
+          { companyName: { contains: s, mode: "insensitive" } },
+          { contactName: { contains: s, mode: "insensitive" } },
+          { email:       { contains: s, mode: "insensitive" } },
+          { city:        { contains: s, mode: "insensitive" } },
+        ],
+      });
+    }
+    const where: Prisma.OperatorWhereInput | undefined = and.length ? { AND: and } : undefined;
     const [items, total] = await prisma.$transaction([
       prisma.operator.findMany({
         where,
@@ -39,6 +52,23 @@ export const operatorsRepository = {
 
   create(data: RegisterOperatorInput): Promise<Operator> {
     return prisma.operator.create({ data });
+  },
+
+  /** Return all approved operators — used by admin waybill assignment dropdown. */
+  findApproved(): Promise<Pick<Operator, "id" | "companyName" | "city">[]> {
+    return prisma.operator.findMany({
+      where:   { status: "approved" },
+      select:  { id: true, companyName: true, city: true },
+      orderBy: { companyName: "asc" },
+    });
+  },
+
+  updateProfile(
+    id: string,
+    data: UpdateOperatorProfileInput,
+    tx?: Tx
+  ): Promise<Operator> {
+    return (tx ?? prisma).operator.update({ where: { id }, data });
   },
 
   /**

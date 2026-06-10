@@ -11,7 +11,36 @@ import axios, {
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from "axios";
+import * as Sentry from "@sentry/nextjs";
 import { getToken, clearToken } from "./auth";
+
+/**
+ * Report an API failure to Sentry — server errors (5xx) and network/timeout
+ * failures only; expected 4xx (validation, auth, conflicts) are deliberately
+ * skipped as noise. Sends method + path + status + request id ONLY — never the
+ * request/response body (which can contain PII). scrubEvent is a further net.
+ */
+function captureApiFailure(error: AxiosError): void {
+  const status = error.response?.status;
+  if (status !== undefined && status < 500) return; // skip expected 4xx
+  const method = (error.config?.method ?? "GET").toUpperCase();
+  const path = (error.config?.url ?? "").split("?")[0] ?? ""; // drop query (may carry tokens/refs)
+  const requestId =
+    (error.response?.headers as Record<string, string> | undefined)?.["x-request-id"];
+  const route = typeof window !== "undefined" ? window.location.pathname : undefined;
+
+  Sentry.withScope((scope) => {
+    scope.setTag("error.category", "api");
+    scope.setTag("api.method", method);
+    scope.setTag("api.path", path);
+    scope.setTag("api.status", String(status ?? "network_error"));
+    if (requestId) scope.setTag("request_id", requestId);
+    if (route) scope.setTag("route", route);
+    scope.setLevel("error");
+    scope.setFingerprint(["api", method, path, String(status ?? "network")]);
+    Sentry.captureException(error);
+  });
+}
 
 // Carries a retry counter on the request config across interceptor passes.
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
@@ -105,6 +134,8 @@ api.interceptors.response.use(
       if (typeof nested?.code === "string") code = nested.code;
       else if (typeof d.code === "string") code = d.code;
     }
+    // Telemetry: record server/network failures (after retries are exhausted).
+    captureApiFailure(error);
     return Promise.reject({ message, code, status });
   }
 );

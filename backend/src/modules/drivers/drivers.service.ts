@@ -8,7 +8,8 @@ import { ConflictError, NotFoundError, UnauthorizedError } from "../../shared/er
 
 import { ARGON2_OPTIONS } from "../../shared/security";
 import type { AuthUser } from "../../shared/types/auth";
-import { driversRepository, type DriverDTO } from "./drivers.repository";
+import { pageMeta, type PaginationQuery, type PageMeta } from "../../shared/pagination";
+import { driversRepository, type DriverDTO, type AdminDriverDTO, type DriverListFilter } from "./drivers.repository";
 import type { CreateDriverInput, UpdateDriverInput } from "./drivers.schema";
 
 // Pre-compute a dummy hash so timing is consistent even when the phone isn't found.
@@ -25,9 +26,27 @@ export const driversService = {
     return driversRepository.create({ ...input, operatorId, passwordHash });
   },
 
-  /** List all drivers belonging to this operator. */
+  /** List all drivers belonging to this operator (unpaginated — used internally). */
   listByOperator(operatorId: string): Promise<DriverDTO[]> {
     return driversRepository.findAll(operatorId);
+  },
+
+  /**
+   * Paginated driver directory.
+   *  - operator → forced to their own fleet (filter.operatorId from the JWT)
+   *  - admin    → all drivers, optionally filtered by ?operatorId
+   * Other filters (isActive, search) apply within that scope.
+   */
+  async list(
+    filter: DriverListFilter,
+    role: string,
+    operatorId: string | undefined,
+    pagination: PaginationQuery
+  ): Promise<{ drivers: AdminDriverDTO[]; pagination: PageMeta }> {
+    const scoped: DriverListFilter =
+      role === "operator" ? { ...filter, operatorId } : filter;
+    const { items, total } = await driversRepository.findPaginated(scoped, pagination);
+    return { drivers: items, pagination: pageMeta(total, pagination) };
   },
 
   /** Get a single driver — ownership scoped to the calling operator. */

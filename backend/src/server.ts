@@ -8,11 +8,16 @@
  * If any dependency fails to connect, we exit non-zero so the orchestrator
  * (Docker/PM2) can restart us, rather than serving traffic in a broken state.
  */
+// MUST be first: initializes Sentry before any instrumented module (http,
+// express, redis) is imported. No-op when SENTRY_DSN is unset.
+import "./infra/sentry/instrument";
+import { createServer } from "http";
 import { createApp } from "./app";
 import { env } from "./config/env";
 import { logger } from "./infra/logger";
 import { connectDb, disconnectDb } from "./infra/db/client";
 import { connectRedis, disconnectRedis } from "./infra/redis/client";
+import { initSocketServer, disconnectAllSockets } from "./infra/socket";
 import {
   startHoldExpiryWorker,
   startSeatSweepWorker,
@@ -21,6 +26,7 @@ import {
 } from "./infra/queue/client";
 import { processHoldExpiry, processSeatSweep } from "./modules/bookings";
 import { notificationsWorker } from "./modules/notifications"; // registers eventBus listeners + starts worker
+import { flushSentry } from "./infra/sentry";
 
 async function main(): Promise<void> {
   await connectDb();
@@ -30,7 +36,10 @@ async function main(): Promise<void> {
   await scheduleSeatSweep();
 
   const app = createApp();
-  const server = app.listen(env.PORT, () => {
+  const server = createServer(app);
+  initSocketServer(server);
+
+  server.listen(env.PORT, () => {
     logger.info(`🚀 Server listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
   });
 
@@ -39,8 +48,13 @@ async function main(): Promise<void> {
     if (shuttingDown) return; // ignore repeated signals (e.g. double Ctrl-C)
     shuttingDown = true;
     logger.info(`${signal} received — shutting down gracefully...`);
+    // Drop live websocket clients first; otherwise their long-lived connections
+    // keep server.close()'s callback from ever firing and we'd always hit the
+    // hard-timeout exit below.
+    disconnectAllSockets();
     server.close(() => {
       void Promise.allSettled([
+        flushSentry(),          // drain buffered Sentry events before exit
         disconnectDb(),
         disconnectRedis(),
         closeQueue(),

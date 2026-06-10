@@ -1,0 +1,42 @@
+# Local development infrastructure for TransHub.
+# Runs Postgres + Redis in containers; the backend runs on the host (npm run dev)
+# for a fast edit-reload loop. Start with:  docker compose up -d
+#
+# (PgBouncer for connection pooling is deferred to the deployment phase.)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: transhub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: transhub
+      POSTGRES_PASSWORD: transhub
+      POSTGRES_DB: transhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - transhub-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U transhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: transhub-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - transhub-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  transhub-pgdata:
+  transhub-redisdata:

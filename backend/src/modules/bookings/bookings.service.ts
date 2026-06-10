@@ -12,7 +12,7 @@
 import { prisma } from "../../infra/db/client";
 import { ConflictError, NotFoundError, ForbiddenError } from "../../shared/errors";
 import { eventBus } from "../../infra/events";
-import { bookingsRepository, type BookingDTO, type TripPassengerDTO } from "./bookings.repository";
+import { bookingsRepository, type BookingDTO, type TripPassengerDTO, type BookingListFilter } from "./bookings.repository";
 import { inventoryService } from "../inventory";
 import { pageMeta, type PaginationQuery, type PageMeta } from "../../shared/pagination";
 import type { HoldInput, ConfirmInput } from "./bookings.schema";
@@ -109,10 +109,15 @@ export const bookingsService = {
     return booking;
   },
 
-  /** List bookings (paginated): passenger → own; admin → all; operator → their trips. */
+  /**
+   * List bookings (paginated + filtered): passenger → own; admin → all; operator
+   * → their trips. The role-appropriate scope is enforced in the repository so a
+   * passenger/operator can never widen their view via query params.
+   */
   async list(
     userId: string,
     role: string,
+    filter: BookingListFilter,
     pagination: PaginationQuery,
     operatorId?: string | null
   ): Promise<{ bookings: BookingDTO[]; pagination: PageMeta }> {
@@ -120,11 +125,11 @@ export const bookingsService = {
     let total: number;
 
     if (role === "admin") {
-      ({ items, total } = await bookingsRepository.findAll(pagination));
+      ({ items, total } = await bookingsRepository.findAll(filter, pagination));
     } else if (role === "operator" && operatorId) {
-      ({ items, total } = await bookingsRepository.findByOperator(operatorId, pagination));
+      ({ items, total } = await bookingsRepository.findByOperator(operatorId, filter, pagination));
     } else {
-      ({ items, total } = await bookingsRepository.findByUser(userId, pagination));
+      ({ items, total } = await bookingsRepository.findByUser(userId, filter, pagination));
     }
 
     return { bookings: items, pagination: pageMeta(total, pagination) };

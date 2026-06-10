@@ -1,0 +1,179 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel in-flight runs for the same branch when a new push arrives.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ---------------------------------------------------------------------------
+# CI env strategy
+#
+# Secrets (JWT_SECRET, PAYSTACK_SECRET, PAYSTACK_PUBLIC_KEY) are NOT available
+# in workflows triggered by pull requests from forks — GitHub intentionally
+# withholds them to prevent secret exfiltration.
+#
+# Solution: CI uses hardcoded test-only fallbacks for values that are required
+# by env.ts at boot but carry no real-world trust in the test environment.
+# Real secrets (e.g. production Paystack keys) are never needed by tests;
+# tests hit the DB and Redis directly, not external payment APIs.
+#
+# Do NOT use these values outside of CI.
+# ---------------------------------------------------------------------------
+env:
+  DATABASE_URL: postgresql://transhub:transhub@localhost:5432/transhub_test
+  REDIS_URL: redis://localhost:6379
+  # 64-char hex string — meets the min-16 requirement, meaningless outside CI.
+  JWT_SECRET: "ci-test-jwt-secret-000000000000000000000000000000000000000000000000"
+  # Paystack test keys — sk_test_ prefix passes the min-20 check; no real charges.
+  PAYSTACK_SECRET: "sk_test_ci_placeholder_key_transhub_000000000000000"
+  PAYSTACK_PUBLIC_KEY: "pk_test_ci_placeholder_key_transhub"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Backend: lint
+  # ---------------------------------------------------------------------------
+  backend-lint:
+    name: Backend — lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  # ---------------------------------------------------------------------------
+  # Backend: typecheck
+  # ---------------------------------------------------------------------------
+  backend-typecheck:
+    name: Backend — typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+
+  # ---------------------------------------------------------------------------
+  # Backend: tests (requires Postgres + Redis)
+  # ---------------------------------------------------------------------------
+  backend-test:
+    name: Backend — tests (unit + concurrency)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: transhub_test
+          POSTGRES_USER: transhub
+          POSTGRES_PASSWORD: transhub
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    # NODE_ENV=test disables the rate limiter (see middleware/rate-limit.ts) so
+    # the concurrency test's burst of auth + hold calls from one IP isn't throttled.
+    env:
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+
+      - name: Apply migrations + seed admin
+        run: |
+          npx prisma migrate deploy
+          npx prisma db seed
+
+      - name: Run unit tests
+        run: npm test
+
+      # The seat-concurrency test hits a live HTTP server, so boot one in the
+      # background, wait until /health reports 200 (deps connected), then run it.
+      - name: Boot API server
+        run: |
+          npx tsx src/server.ts > /tmp/server.log 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:4000/health > /dev/null; then
+              echo "server is up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "server failed to become healthy:"; cat /tmp/server.log; exit 1
+
+      - name: Run seat concurrency test (hold phase)
+        run: npm run test:concurrency
+
+      # Confirm phase = the money path. Webhooks are HMAC-signed with the same
+      # PAYSTACK_SECRET the server booted with (set in the workflow-level env).
+      - name: Run confirm concurrency test (webhook → booked)
+        run: npm run test:confirm-concurrency
+
+      - name: Stop API server
+        if: always()
+        run: kill "$SERVER_PID" 2>/dev/null || true
+
+  # ---------------------------------------------------------------------------
+  # Frontend: build
+  # ---------------------------------------------------------------------------
+  frontend-build:
+    name: Frontend — build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_PAYSTACK_KEY: pk_test_placeholder
+        run: npm run build

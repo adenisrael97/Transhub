@@ -25,19 +25,26 @@ export function initializePayment(
   return api.post<InitializeResult, InitializeResult>("/payments/initialize", { tripId, passengers });
 }
 
+export type VerifyResult =
+  | { state: "success"; booking: Booking }
+  | { state: "pending" }
+  | { state: "failed"; reason: string };
+
 /**
- * Poll backend for the booking created by the Paystack webhook.
- * Returns `null` if the webhook hasn't fired yet (202 Accepted),
- * or `{ booking }` when confirmed.
+ * Ask the backend to resolve a payment after the Paystack redirect.
+ * The backend first checks for a webhook-confirmed booking, then falls back to
+ * Paystack's verify API — so this distinguishes a confirmed payment, one still
+ * in flight (keep polling), and a definite failure/cancellation (offer a retry).
  */
-export async function verifyPayment(
-  reference: string
-): Promise<{ booking: Booking } | null> {
+export async function verifyPayment(reference: string): Promise<VerifyResult> {
   const result = await api.get<
-    { booking: Booking } | { status: "pending" },
-    { booking: Booking } | { status: "pending" }
+    { booking: Booking } | { status: "pending" } | { status: "failed"; reason?: string },
+    { booking: Booking } | { status: "pending" } | { status: "failed"; reason?: string }
   >(`/payments/verify/${encodeURIComponent(reference)}`);
 
-  if ("status" in result && result.status === "pending") return null;
-  return result as { booking: Booking };
+  if ("booking" in result) return { state: "success", booking: result.booking };
+  if ("status" in result && result.status === "failed") {
+    return { state: "failed", reason: result.reason ?? "Your payment could not be completed." };
+  }
+  return { state: "pending" };
 }

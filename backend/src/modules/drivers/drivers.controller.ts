@@ -5,7 +5,7 @@
 import type { Request, Response } from "express";
 import { ForbiddenError } from "../../shared/errors";
 import { driversService } from "./drivers.service";
-import type { CreateDriverInput, UpdateDriverInput } from "./drivers.schema";
+import { listDriversQuerySchema, type CreateDriverInput, type UpdateDriverInput } from "./drivers.schema";
 
 type IdParam = { id: string };
 
@@ -17,11 +17,15 @@ export const driversController = {
     res.status(201).json({ driver });
   },
 
+  /** GET /drivers — operator (own fleet) or admin (all, optional ?operatorId). Paginated. */
   async list(req: Request, res: Response): Promise<void> {
-    const operatorId = req.user?.operatorId;
-    if (!operatorId) throw new ForbiddenError("No operator profile linked to this account");
-    const drivers = await driversService.listByOperator(operatorId);
-    res.json({ drivers });
+    const { role, operatorId } = req.user!;
+    if (role === "operator" && !operatorId) {
+      throw new ForbiddenError("No operator profile linked to this account");
+    }
+    const { page, limit, ...filter } = listDriversQuerySchema.parse(req.query);
+    const result = await driversService.list(filter, role, operatorId, { page, limit });
+    res.json(result);
   },
 
   async getById(req: Request<IdParam>, res: Response): Promise<void> {

@@ -23,16 +23,11 @@ export default function DriverDashboardPage() {
     setLoading(true);
     setError("");
     try {
+      // The backend already scopes this to today's boarding-relevant window using
+      // the SERVER clock, so we trust its list rather than re-filtering against the
+      // driver's (possibly skewed) device clock.
       const res = await fetchDriverTrips();
-      const now = new Date();
-      const todayEnd = new Date(now);
-      todayEnd.setHours(23, 59, 59, 999);
-      const allTrips = res.trips ?? [];
-      const todayTrips = allTrips.filter((t) => {
-        const dep = new Date(t.departureTime);
-        return dep > new Date(now - 4 * 36e5) && dep <= todayEnd;
-      });
-      setTrips(todayTrips.length > 0 ? todayTrips : allTrips.slice(0, 10));
+      setTrips(res.trips ?? []);
     } catch {
       setError("Failed to load trips. Please refresh.");
     } finally {

@@ -20,7 +20,7 @@ export interface TicketDTO {
   arrivalTime:    string | null;
   operator:       string;        // companyName
   vehicleType:    string;
-  seats:          string[];      // labels, e.g. ["A1", "B3"]
+  seatCount:      number;        // open seating — number of seats booked, not labels
   totalAmount:    number;        // naira
   bookedAt:       string;        // ISO string (booking.createdAt)
 }
@@ -32,33 +32,40 @@ export interface TicketSummaryDTO {
   from:          string;
   to:            string;
   departureTime: string;
-  seats:         string[];
+  seatCount:     number;
   totalAmount:   number;
   bookedAt:      string;
 }
 
-// Full ticket: trip + operator name, passenger contact, seat labels.
+// Full ticket: trip + operator name, passenger contact, booked-seat count.
 const TICKET_FULL = {
-  trip:  { include: { operator: { select: { companyName: true } } } },
-  user:  { select: { fullName: true, phone: true } },
-  seats: { include: { seat: { select: { label: true } } } },
+  trip:   { include: { operator: { select: { companyName: true } } } },
+  user:   { select: { fullName: true, phone: true } },
+  _count: { select: { seats: true } },
 } satisfies Prisma.BookingInclude;
 
 // Lighter shape for the list page — no operator/passenger detail needed.
 const TICKET_SUMMARY = {
-  trip:  { select: { from: true, to: true, departureTime: true } },
-  seats: { include: { seat: { select: { label: true } } } },
+  trip:   { select: { from: true, to: true, departureTime: true } },
+  _count: { select: { seats: true } },
 } satisfies Prisma.BookingInclude;
 
-// Seat labels sorted for stable display ("A1, A2, B3" not "B3, A1, A2").
-function sortLabels(seats: Array<{ seat: { label: string } }>): string[] {
-  return seats.map((bs) => bs.seat.label).sort((a, b) => a.localeCompare(b));
-}
-
 export const ticketsRepository = {
-  /** A page of confirmed bookings for this passenger, newest first. */
-  async findByUser(userId: string, pagination: PaginationQuery): Promise<Page<TicketSummaryDTO>> {
-    const where = { userId, status: "confirmed" as const };
+  /** A page of confirmed bookings for this passenger, newest first, optional search. */
+  async findByUser(userId: string, search: string | undefined, pagination: PaginationQuery): Promise<Page<TicketSummaryDTO>> {
+    const where: Prisma.BookingWhereInput = {
+      userId,
+      status: "confirmed",
+      ...(search
+        ? {
+            OR: [
+              { paymentRef: { contains: search, mode: "insensitive" } },
+              { trip: { from: { contains: search, mode: "insensitive" } } },
+              { trip: { to:   { contains: search, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
+    };
     const [bookings, total] = await prisma.$transaction([
       prisma.booking.findMany({
         where,
@@ -77,7 +84,7 @@ export const ticketsRepository = {
         from:          b.trip.from,
         to:            b.trip.to,
         departureTime: b.trip.departureTime.toISOString(),
-        seats:         sortLabels(b.seats),
+        seatCount:     b._count.seats,
         totalAmount:   b.totalAmount,
         bookedAt:      b.createdAt.toISOString(),
       })),
@@ -110,7 +117,7 @@ export const ticketsRepository = {
       arrivalTime:    b.trip.arrivalTime ? b.trip.arrivalTime.toISOString() : null,
       operator:       b.trip.operator.companyName,
       vehicleType:    b.trip.vehicleType,
-      seats:          sortLabels(b.seats),
+      seatCount:      b._count.seats,
       totalAmount:    b.totalAmount,
       bookedAt:       b.createdAt.toISOString(),
     };

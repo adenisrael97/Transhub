@@ -46,6 +46,62 @@ export const registerSchema = z
   });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+// Mirror the backend's strength rules (auth.schema.ts strongPassword) exactly so
+// the client never accepts a password the API would 400 on.
+const strongPasswordSchema = passwordSchema
+  .regex(/[A-Z]/, "Add at least one uppercase letter")
+  .regex(/[a-z]/, "Add at least one lowercase letter")
+  .regex(/[0-9]/, "Add at least one number");
+
+export const resetPasswordSchema = z
+  .object({
+    password: strongPasswordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+// ---------------------------------------------------------------------------
+// Account settings
+// ---------------------------------------------------------------------------
+
+// Profile edit. Mirrors backend users.updateProfileSchema: every field optional,
+// but at least one must change. Phone uses the same Nigerian-format rule as
+// registration so the client never sends something the API would 400 on.
+export const profileUpdateSchema = z
+  .object({
+    name: nameSchema,
+    email: emailSchema,
+    phone: phoneSchema,
+  });
+export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
+
+// Change password. newPassword meets the same strength bar as registration/reset
+// (and the backend's users.changePasswordSchema), and must be confirmed.
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password"),
+    newPassword: strongPasswordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .refine((d) => d.newPassword !== d.currentPassword, {
+    message: "New password must be different from the current one",
+    path: ["newPassword"],
+  });
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
 // ---------------------------------------------------------------------------
 // Booking / checkout
 // ---------------------------------------------------------------------------
@@ -122,16 +178,18 @@ export type OperatorRegistrationInput = z.infer<typeof operatorRegistrationSchem
 // Waybill
 // ---------------------------------------------------------------------------
 
+// Field names mirror the API contract (WaybillPayload / Prisma Waybill) so this
+// schema can validate the WaybillForm payload directly without a rename layer.
 export const waybillSchema = z.object({
-  from: z.string().min(1, "Select an origin"),
-  to: z.string().min(1, "Select a destination"),
+  fromLocation: z.string().min(1, "Select an origin"),
+  toLocation: z.string().min(1, "Select a destination"),
   senderName: nameSchema,
   senderPhone: phoneSchema,
-  receiverName: nameSchema,
-  receiverPhone: phoneSchema,
+  recipientName: nameSchema,
+  recipientPhone: phoneSchema,
   description: z.string().min(1, "Describe the item"),
-  weight: z.string().min(1, "Enter the weight"),
-  value: z.string().min(1, "Enter the declared value"),
+  weightKg: z.string().min(1, "Enter the weight"),
+  declaredValue: z.string().min(1, "Enter the declared value"),
 });
 export type WaybillInput = z.infer<typeof waybillSchema>;
 

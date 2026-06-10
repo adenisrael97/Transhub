@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "trips" ADD COLUMN     "isFull" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "offlineCount" INTEGER NOT NULL DEFAULT 0;

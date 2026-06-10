@@ -3,9 +3,8 @@
  */
 import type { Request, Response } from "express";
 import { UnauthorizedError } from "../../shared/errors";
-import { paginationQuerySchema } from "../../shared/pagination";
 import { bookingsService } from "./bookings.service";
-import type { HoldInput } from "./bookings.schema";
+import { listBookingsQuerySchema, type HoldInput } from "./bookings.schema";
 
 export const bookingsController = {
   async hold(req: Request, res: Response): Promise<void> {
@@ -16,11 +15,14 @@ export const bookingsController = {
 
   async list(req: Request, res: Response): Promise<void> {
     if (!req.user) throw new UnauthorizedError();
-    const pagination = paginationQuerySchema.parse(req.query);
+    // Re-parse: validateQuery guards but can't write back to Express 5's
+    // getter-only req.query, so coercion/defaults aren't applied there.
+    const { page, limit, ...filter } = listBookingsQuerySchema.parse(req.query);
     const result = await bookingsService.list(
       req.user.id,
       req.user.role,
-      pagination,
+      filter,
+      { page, limit },
       req.user.operatorId ?? null
     );
     res.json(result);

@@ -12,13 +12,20 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:concurrency": "tsx src/tests/seat-concurrency.test.ts",
+    "test:confirm-concurrency": "tsx src/tests/confirm-concurrency.test.ts",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "db:seed": "prisma db seed"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.5.0",
     "@prisma/client": "^6.19.3",
+    "@sentry/node": "^10.57.0",
     "argon2": "^0.44.0",
     "bullmq": "^5.77.6",
     "cors": "^2.8.6",
@@ -30,6 +37,8 @@
     "nodemailer": "^8.0.9",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
+    "socket.io": "^4.8.3",
+    "swagger-ui-express": "^5.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -39,6 +48,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.9.1",
     "@types/nodemailer": "^8.0.0",
+    "@types/swagger-ui-express": "^4.1.8",
     "eslint": "^10.4.0",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-boundaries": "^6.0.2",

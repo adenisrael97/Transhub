@@ -19,9 +19,10 @@ export const ticketsService = {
 
   async listTickets(
     userId: string,
+    search: string | undefined,
     pagination: PaginationQuery
   ): Promise<{ tickets: TicketSummaryDTO[]; pagination: PageMeta }> {
-    const { items, total } = await ticketsRepository.findByUser(userId, pagination);
+    const { items, total } = await ticketsRepository.findByUser(userId, search, pagination);
     return { tickets: items, pagination: pageMeta(total, pagination) };
   },
 };

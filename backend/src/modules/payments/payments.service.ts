@@ -27,10 +27,14 @@ import {
   ForbiddenError,
   ConflictError,
 } from "../../shared/errors";
-import { bookingsService } from "../bookings";
+import { eventBus } from "../../infra/events";
+import { reportPaymentIssue, type PaymentStage } from "../../infra/sentry";
+import { bookingsService, type BookingDTO } from "../bookings";
 import { usersService }    from "../users";
+import type { CharterDTO } from "../charters";
+import type { WaybillDTO } from "../waybills";
 import { paymentsRepository } from "./payments.repository";
-import { webhookBodySchema, type InitializeInput, type PassengerInfoInput } from "./payments.schema";
+import { webhookBodySchema, type InitializeInput, type PassengerInfoInput, type WebhookBody } from "./payments.schema";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -92,11 +96,185 @@ async function paystackPost(path: string, body: unknown): Promise<unknown> {
   return res.json();
 }
 
+async function paystackGet(path: string): Promise<unknown> {
+  let res: Response;
+  try {
+    res = await fetch(`https://api.paystack.co${path}`, {
+      method:  "GET",
+      headers: { Authorization: `Bearer ${env.PAYSTACK_SECRET}` },
+      signal:  AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
+    });
+  } catch (err) {
+    logger.error({ err: (err as Error).name }, "Paystack request failed (network/timeout)");
+    throw new ConflictError("Payment provider is unreachable. Please try again.");
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    let providerMessage = "unknown";
+    try { providerMessage = (JSON.parse(text) as { message?: string })?.message ?? "unknown"; } catch { /* non-JSON body */ }
+    // 400 ("Transaction reference not found.") or 404 means Paystack has no
+    // usable record of this reference — e.g. the user abandoned before a charge
+    // was created. That's an expected "unpaid" outcome, not a server error:
+    // return the body ({status:false}) so the caller resolves it as not-success.
+    if (res.status === 400 || res.status === 404) {
+      logger.info({ status: res.status, providerMessage }, "Paystack verify: no usable transaction for reference");
+      try { return JSON.parse(text); } catch { return {}; }
+    }
+    // 401/403/5xx etc. are real failures (bad key, outage) — surface as retryable.
+    logger.error({ status: res.status, providerMessage }, "Paystack verify request failed");
+    throw new ConflictError("Payment provider error. Please try again.");
+  }
+  return res.json().catch(() => ({}));
+}
+
+/**
+ * Normalised result of a Paystack transaction lookup. `state` collapses
+ * Paystack's many statuses into the three the product cares about; `raw` is
+ * kept only for logging/diagnostics (never the reference).
+ */
+export type TxState = "success" | "failed" | "pending";
+export interface VerifiedTransaction {
+  state:      TxState;
+  amountKobo: number;
+  metadata:   WebhookBody["data"]["metadata"];
+  raw:        string;
+}
+
+/**
+ * Authoritatively ask Paystack about a transaction. This is the fallback the
+ * frontend callback relies on when the asynchronous webhook is delayed, dropped,
+ * or (in local dev) simply can't reach the server — and the only way to tell a
+ * failed/abandoned payment apart from one that's merely still in flight.
+ * Returns null when Paystack has no such transaction (invalid/abandoned ref).
+ */
+async function verifyWithPaystack(reference: string): Promise<VerifiedTransaction | null> {
+  const res = (await paystackGet(`/transaction/verify/${encodeURIComponent(reference)}`)) as {
+    status?: boolean;
+    data?:   { status?: string; amount?: number; metadata?: unknown };
+  };
+  if (!res?.status || !res.data) return null;
+
+  const rawStatus = res.data.status ?? "unknown";
+  const state: TxState =
+    rawStatus === "success"                                         ? "success"
+    : ["failed", "abandoned", "reversed"].includes(rawStatus)      ? "failed"
+    : "pending";
+
+  // Paystack echoes back the metadata object we sent at initialize time. Validate
+  // its shape with the same schema the webhook uses so the confirm path can trust it.
+  const metaParse = webhookBodySchema.shape.data.shape.metadata.safeParse(res.data.metadata);
+
+  return {
+    state,
+    amountKobo: res.data.amount ?? 0,
+    metadata:   metaParse.success ? metaParse.data : undefined,
+    raw:        rawStatus,
+  };
+}
+
+/**
+ * Confirm a booking from a successful charge — the single code path shared by
+ * the webhook handler and the verify fallback. Idempotent: a duplicate delivery
+ * (or webhook + verify racing) finds the booking already exists and returns it.
+ * Amount is ALWAYS recomputed from the DB — the webhook/Paystack amount is only
+ * ever compared, never trusted. The reference is never logged.
+ */
+type SettleResult =
+  | { ok: true;  booking: BookingDTO }
+  | { ok: false; reason: string; code: "META" | "TRIP" | "AMOUNT" | "SEATS_GONE" };
+
+async function settleBookingCharge(
+  reference: string,
+  amountKobo: number,
+  metadata: WebhookBody["data"]["metadata"],
+  stage: PaymentStage
+): Promise<SettleResult> {
+  const existing = await bookingsService.getByPaymentRef(reference);
+  if (existing) return { ok: true, booking: existing };
+
+  const tripId  = metadata?.tripId;
+  const seatIds = metadata?.seatIds;
+  const userId  = metadata?.userId;
+  if (!tripId || !seatIds || seatIds.length === 0 || !userId) {
+    logger.error({ metadata }, "charge.success missing required booking metadata fields");
+    reportPaymentIssue({
+      type: "booking", stage, reference, userId,
+      message: "Booking payment metadata incomplete", context: { code: "META" },
+    });
+    return { ok: false, reason: "Payment metadata was incomplete.", code: "META" };
+  }
+
+  // Read passenger info cached at initialize time. Degrade gracefully if Redis
+  // lost the key (TTL expiry, restart) — the booking is still confirmed.
+  let passengers: PassengerInfoInput[] | undefined;
+  try {
+    const paxJson = await redis.get(`pax:${reference}`);
+    if (paxJson) passengers = JSON.parse(paxJson) as PassengerInfoInput[];
+  } catch (err) {
+    logger.warn({ err }, "Could not read passenger info from Redis — booking confirmed without passenger details");
+  }
+
+  // Amount verification — NEVER trust the provider amount; recalculate from DB.
+  const price = await paymentsRepository.findTripPrice(tripId);
+  if (price === null) {
+    logger.error({ tripId }, "Charge references unknown trip");
+    reportPaymentIssue({
+      type: "booking", stage, reference, userId,
+      message: "Booking payment references unknown trip", context: { code: "TRIP", tripId },
+    });
+    return { ok: false, reason: "The trip for this payment no longer exists.", code: "TRIP" };
+  }
+  const expectedKobo = seatIds.length * price * 100;
+  if (amountKobo !== expectedKobo) {
+    logger.error({ expected: expectedKobo, received: amountKobo, tripId }, "Amount mismatch — possible fraud, booking NOT confirmed");
+    reportPaymentIssue({
+      type: "booking", stage, reference, userId,
+      message: "Booking payment amount mismatch — possible fraud",
+      context: { code: "AMOUNT", expectedKobo, receivedKobo: amountKobo, tripId },
+    });
+    return { ok: false, reason: "Payment amount did not match the booking.", code: "AMOUNT" };
+  }
+
+  // Confirm (Phase 4: SELECT FOR UPDATE → booked). A ConflictError means the
+  // seats are gone (hold expired and re-booked) — non-retryable; caller decides
+  // how to surface it (webhook logs for refund, verify returns failed).
+  try {
+    const booking = await bookingsService.confirm({ paymentRef: reference, tripId, seatIds, passengers }, userId);
+    return { ok: true, booking };
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      // Critical: money captured but seats are gone — needs manual refund.
+      reportPaymentIssue({
+        type: "booking", stage, reference, userId, level: "error",
+        message: "Payment captured but seats unavailable — manual refund required",
+        context: { code: "SEATS_GONE", tripId },
+      });
+      return { ok: false, reason: "Seats are no longer available.", code: "SEATS_GONE" };
+    }
+    // Unexpected confirm failure (DB/txn) — capture the real exception.
+    reportPaymentIssue({ type: "booking", stage, reference, userId, error: err, context: { tripId } });
+    throw err;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
+/** Outcome of a callback-driven payment verification, mapped to HTTP by the controller. */
+export type VerifyOutcome =
+  | { state: "success"; booking: BookingDTO }
+  | { state: "pending" }
+  | { state: "failed";  reason: string };
+
 export const paymentsService = {
+  /** Expose Paystack verification to sibling modules (charters/waybills) so
+   *  their callbacks get the same webhook-independent confirmation. Returns null
+   *  when Paystack has no record of the reference. */
+  async lookupTransaction(reference: string): Promise<VerifiedTransaction | null> {
+    return verifyWithPaystack(reference);
+  },
+
   /**
    * Initialize a Paystack transaction.
    * Verifies that all requested seats are held by this user in Redis before
@@ -120,6 +298,9 @@ export const paymentsService = {
     // Fetch trip for price (never trust the client for amount)
     const price = await paymentsRepository.findTripPrice(tripId);
     if (price === null) throw new NotFoundError("Trip not found");
+    // Guard against a bad operator input / migration bug initializing a ₦0 (or
+    // negative) Paystack transaction. Better to block checkout than charge nothing.
+    if (price <= 0) throw new ConflictError("This trip has an invalid price — please contact the operator", "INVALID_PRICE");
 
     const user = await usersService.findById(userId);
     if (!user) throw new NotFoundError("User not found");
@@ -127,15 +308,17 @@ export const paymentsService = {
     const amountKobo = seatIds.length * price * 100;
     const reference  = generateRef();
 
-    // Store passenger PII in Redis keyed by reference (2 h TTL — well beyond
-    // any plausible payment completion window). NOT in Paystack metadata:
-    // metadata has a size cap and embedding PII in a third-party payload is
-    // a compliance risk. The webhook handler reads this key to persist rows.
+    // Store passenger PII in Redis keyed by reference (24 h TTL). NOT in Paystack
+    // metadata: metadata has a size cap and embedding PII in a third-party payload
+    // is a compliance risk. The webhook handler reads this key to persist rows.
+    // TTL must comfortably exceed Paystack's webhook retry window (it retries a
+    // failed delivery for up to 72 h, but realistically succeeds within minutes);
+    // 24 h keeps PII recoverable for any same-day retry without hoarding it.
     await redis.set(
       `pax:${reference}`,
       JSON.stringify(passengers),
       "EX",
-      7200
+      86400
     ).catch((err) => {
       logger.warn({ err }, "Failed to cache passenger info in Redis — passengers will not be persisted");
     });
@@ -197,73 +380,157 @@ export const paymentsService = {
       return;
     }
 
-    // 4. Idempotency — same webhook fires twice → booking already exists → return early
-    const existing = await bookingsService.getByPaymentRef(data.reference);
-    if (existing) return;
-
-    // 5. Extract our custom metadata
-    if (!data.metadata) {
-      logger.error({ event }, "charge.success webhook missing metadata — cannot confirm booking");
-      return;
-    }
-    const { tripId, seatIds, userId } = data.metadata;
-
-    // Read passenger info that was cached on payment initialization.
-    // Gracefully degrade if Redis lost the key (TTL expired, restart, etc.) —
-    // the booking is still confirmed, just without passenger details.
-    let passengers: PassengerInfoInput[] | undefined;
-    try {
-      const paxJson = await redis.get(`pax:${data.reference}`);
-      if (paxJson) passengers = JSON.parse(paxJson) as PassengerInfoInput[];
-    } catch (err) {
-      logger.warn({ err }, "Could not read passenger info from Redis — booking confirmed without passenger details");
-    }
-
-    // 6. Amount verification — NEVER trust the webhook amount; recalculate from DB
-    const price = await paymentsRepository.findTripPrice(tripId);
-    if (price === null) {
-      logger.error({ tripId }, "Webhook references unknown trip");
-      return;
-    }
-    const expectedKobo = seatIds.length * price * 100;
-    if (data.amount !== expectedKobo) {
-      logger.error(
-        { expected: expectedKobo, received: data.amount, tripId },
-        "Webhook amount mismatch — possible fraud, booking NOT confirmed"
-      );
-      return;
-    }
-
-    // 7. Confirm the booking (Phase 4 logic: SELECT FOR UPDATE → booked).
-    //    A ConflictError means the payment succeeded but the seats are no longer
-    //    available (hold expired and they were re-booked). Retrying can never
-    //    succeed, so we log loudly for manual refund/reconciliation and return
-    //    200 — otherwise Paystack would retry this forever. Any OTHER error is
-    //    treated as transient (e.g. DB blip): rethrow so Paystack retries.
-    //    (Reference is intentionally NOT logged — see security rules.)
-    try {
-      await bookingsService.confirm({ paymentRef: data.reference, tripId, seatIds, passengers }, userId);
-    } catch (err) {
-      if (err instanceof ConflictError) {
-        logger.error(
-          { tripId, userId, seatCount: seatIds.length },
-          "PAYMENT CAPTURED BUT SEATS UNAVAILABLE — manual refund/reconciliation required"
-        );
+    // 4. Route by payment type (charter vs. normal booking)
+    // Charter path uses the event bus to avoid a circular import with the charters module.
+    if (data.metadata?.type === "charter") {
+      const { charterId } = data.metadata;
+      if (!charterId) {
+        logger.error({ event }, "charter webhook missing charterId in metadata");
         return;
       }
-      throw err;
+      eventBus.emit("payment.charter.succeeded", {
+        charterId,
+        reference:         data.reference,
+        paidAt:            new Date(),
+        webhookAmountKobo: data.amount,
+      });
+      return;
+    }
+
+    // --- Waybill payment path ---
+    if (data.metadata?.type === "waybill") {
+      const { waybillId } = data.metadata;
+      if (!waybillId) {
+        logger.error({ event }, "waybill webhook missing waybillId in metadata");
+        return;
+      }
+      eventBus.emit("payment.waybill.succeeded", {
+        waybillId,
+        paidAt:            new Date(),
+        webhookAmountKobo: data.amount, // re-verified against the DB fee downstream
+      });
+      return;
+    }
+
+    // --- Normal booking path ---
+    // Shared with the verify fallback (settleBookingCharge) so both entry points
+    // apply identical idempotency, amount verification and confirm logic. A
+    // ConflictError result ("seats gone") is rethrown here as the one transient
+    // case Paystack should NOT retry — we log for refund and ack 200.
+    const result = await settleBookingCharge(data.reference, data.amount, data.metadata, "webhook");
+    if (!result.ok && result.code === "SEATS_GONE") {
+      logger.error({ code: result.code }, "PAYMENT CAPTURED BUT SEATS UNAVAILABLE — manual refund/reconciliation required");
     }
   },
 
   /**
-   * Look up the booking created for a given payment reference.
-   * Returns null if the webhook hasn't fired yet (caller should poll).
-   * Throws ForbiddenError if the booking belongs to a different user.
+   * Resolve the outcome of a booking payment for the frontend callback.
+   *
+   * Source-of-truth order:
+   *   1. A confirmed booking already exists (webhook won the race) → success.
+   *   2. Otherwise ask Paystack directly (webhook delayed/dropped/unreachable):
+   *      - success → confirm the booking now (idempotent) and return it,
+   *      - failed/abandoned → report failure so the UI can offer a retry,
+   *      - pending → tell the caller to keep polling.
+   *
+   * This makes confirmation resilient to webhook delivery and lets the UI tell a
+   * cancelled/failed payment apart from one still in flight — instead of every
+   * non-success silently timing out as "pending".
    */
-  async verifyPayment(reference: string, userId: string) {
-    const booking = await bookingsService.getByPaymentRef(reference);
-    if (!booking) return null;
-    if (booking.userId !== userId) throw new ForbiddenError();
-    return booking;
+  async verifyPayment(reference: string, userId: string): Promise<VerifyOutcome> {
+    const existing = await bookingsService.getByPaymentRef(reference);
+    if (existing) {
+      if (existing.userId !== userId) throw new ForbiddenError();
+      return { state: "success", booking: existing };
+    }
+
+    const tx = await verifyWithPaystack(reference);
+    if (!tx)                     return { state: "failed",  reason: "We couldn't find this payment. If you were charged, contact support." };
+    if (tx.state === "pending") return { state: "pending" };
+    if (tx.state === "failed")  return { state: "failed",  reason: "Your payment was not completed. You can try again." };
+
+    // Paystack says success but no booking exists yet — confirm it now.
+    if (tx.metadata?.userId && tx.metadata.userId !== userId) throw new ForbiddenError();
+
+    const result = await settleBookingCharge(reference, tx.amountKobo, tx.metadata, "verify");
+    if (result.ok) return { state: "success", booking: result.booking };
+
+    if (result.code === "SEATS_GONE") {
+      logger.error({ code: result.code }, "PAYMENT CAPTURED BUT SEATS UNAVAILABLE (verify path) — manual refund required");
+      return { state: "failed", reason: "Your seats were taken before payment confirmed. Our team will arrange a refund." };
+    }
+    return { state: "failed", reason: result.reason };
+  },
+
+  /**
+   * Initialize a Paystack transaction for a waybill (parcel shipping) payment.
+   * Amount comes from the DB-computed fee (never the client).
+   * metadata.type = 'waybill' routes the webhook to the waybills module.
+   */
+  async initializeWaybillPayment(
+    waybill: WaybillDTO,
+    userEmail: string
+  ): Promise<{ authorizationUrl: string; reference: string }> {
+    const amountKobo = Number(waybill.fee) * 100;
+    if (amountKobo <= 0) {
+      throw new ConflictError("Waybill fee is invalid", "INVALID_PRICE");
+    }
+
+    const reference = generateRef();
+
+    const result = await paystackPost("/transaction/initialize", {
+      email:        userEmail,
+      amount:       amountKobo,
+      reference,
+      metadata:     { type: "waybill", waybillId: waybill.id },
+      // Carry the reference so /pay-success can verify the REAL outcome with
+      // Paystack instead of assuming success from the redirect alone.
+      callback_url: `${env.FRONTEND_URL}/pay-success?waybillNo=${waybill.waybillNo}&reference=${reference}`,
+    }) as { status?: boolean; data?: { authorization_url?: string } };
+
+    const authorizationUrl = result?.data?.authorization_url;
+    if (!authorizationUrl) {
+      logger.error({ status: result?.status }, "Paystack waybill initialize returned no authorization_url");
+      throw new ConflictError("Could not start waybill payment. Please try again.");
+    }
+
+    return { authorizationUrl, reference };
+  },
+
+  /**
+   * Initialize a Paystack transaction for a charter payment.
+   * Amount comes from the DB-stored quotedPrice (never the client).
+   * metadata.type = 'charter' lets the webhook handler route correctly.
+   */
+  async initializeCharterPayment(
+    charter: CharterDTO,
+    userEmail: string
+  ): Promise<{ authorizationUrl: string; reference: string }> {
+    if (!charter.quotedPrice) {
+      throw new ConflictError("Charter has no quoted price — cannot initialize payment", "CHARTER_NO_PRICE");
+    }
+
+    const amountKobo = Number(charter.quotedPrice) * 100;
+    if (amountKobo <= 0) {
+      throw new ConflictError("Charter quoted price is invalid", "INVALID_PRICE");
+    }
+
+    const reference = generateRef();
+
+    const result = await paystackPost("/transaction/initialize", {
+      email:        userEmail,
+      amount:       amountKobo,
+      reference,
+      metadata:     { type: "charter", charterId: charter.id },
+      callback_url: `${env.FRONTEND_URL}/my-charters?reference=${reference}`,
+    }) as { status?: boolean; data?: { authorization_url?: string } };
+
+    const authorizationUrl = result?.data?.authorization_url;
+    if (!authorizationUrl) {
+      logger.error({ status: result?.status }, "Paystack charter initialize returned no authorization_url");
+      throw new ConflictError("Could not start charter payment. Please try again.");
+    }
+
+    return { authorizationUrl, reference };
   },
 };

@@ -1,100 +1,193 @@
-"use client";
-import Link from "next/link";
-import { useState } from "react";
-import { usePathname } from "next/navigation";
-import useAuthStore from "@/store/authStore";
+'use client';
 
-/** Routes where the public navbar should be hidden (they have their own navigation). */
-const HIDDEN_PREFIXES = ['/admin', '/operator', '/manage-trips', '/bookings', '/operators', '/analytics', '/dashboard'];
+import Link from 'next/link';
+import { useState, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Bus, Menu, X, LogOut, LayoutDashboard, ChevronDown, User, Settings, Ticket
+} from 'lucide-react';
+import useAuthStore from '@/store/authStore';
+
+const HIDDEN_PREFIXES = ['/admin', '/operator', '/manage-trips', '/bookings', '/operators', '/analytics'];
 
 const NAV_LINKS = [
-  { href: "/about",   label: "About" },
-  { href: "/search",  label: "Book Seat" },
-  { href: "/send",    label: "Send Goods" },
-  { href: "/charter", label: "Charter" },
-  { href: "/track",   label: "Track Package" },
+  { href: '/about',        label: 'About' },
+  { href: '/search',       label: 'Book Seat' },
+  { href: '/send',         label: 'Send Goods' },
+  { href: '/my-shipments', label: 'My Shipments' },
+  { href: '/charter',      label: 'Charter' },
+  { href: '/track',        label: 'Track Package' },
 ];
 
 export default function Navbar() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const pathname = usePathname();
-  const user = useAuthStore((s) => s.user);
+  const [menuOpen, setMenuOpen]     = useState(false);
+  const [userMenuOpen, setUserMenu] = useState(false);
+  const [scrolled, setScrolled]     = useState(false);
+  const pathname     = usePathname();
+  const userMenuRef  = useRef(null);
+  const user         = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const logout = useAuthStore((s) => s.logout);
+  const logout       = useAuthStore((s) => s.logout);
+  const hasHydrated  = useAuthStore((s) => s.hasHydrated);
 
-  // Hide on admin / operator / driver dashboard pages
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 8);
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
+
+  // Dismiss the account dropdown on outside click or Escape.
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onPointerDown = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenu(false);
+    };
+    const onKeyDown = (e) => { if (e.key === 'Escape') setUserMenu(false); };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [userMenuOpen]);
+
   if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
 
+  const displayName = user?.fullName ?? user?.email ?? 'Account';
+
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <nav className={`bg-white sticky top-0 z-50 transition-shadow duration-200 ${scrolled ? 'shadow-md' : 'border-b border-[#E2E8F0]'}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
+
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
-              <span className="text-white font-bold text-sm">T</span>
+          <Link href="/" className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center">
+              <Bus size={16} className="text-white" />
             </div>
-            <span className="text-gray-900 font-bold text-xl">TransHub</span>
+            <span className="font-bold text-xl text-[#0F172A] tracking-tight">TransHub</span>
           </Link>
 
-          {/* Desktop links */}
-          <div className="hidden md:flex items-center gap-6">
-            {NAV_LINKS.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`text-sm font-medium transition-colors ${
-                  pathname === href
-                    ? "text-blue-600"
-                    : "text-gray-500 hover:text-blue-600"
-                }`}
-              >
-                {label}
-              </Link>
-            ))}
+          {/* Desktop nav links */}
+          <div className="hidden md:flex items-center gap-1">
+            {NAV_LINKS.map(({ href, label }) => {
+              const active = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    active
+                      ? 'text-[#2563EB] bg-[#EFF6FF]'
+                      : 'text-[#475569] hover:text-[#2563EB] hover:bg-[#F8FAFC]'
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </div>
 
           {/* Desktop auth */}
-          <div className="hidden md:flex items-center gap-3">
-            {isAuthenticated ? (
+          <div className="hidden md:flex items-center gap-2">
+            {!hasHydrated ? (
+              <div className="w-24 h-9 rounded-xl bg-[#F1F5F9] animate-pulse" aria-hidden="true" />
+            ) : isAuthenticated ? (
               <>
                 {user?.role === 'admin' && (
-                  <Link href="/admin" className="text-gray-700 border border-gray-200 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
-                    🛠 Admin
+                  <Link
+                    href="/admin"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-[#475569] border border-[#E2E8F0] px-3.5 py-2 rounded-xl hover:bg-[#F8FAFC] transition-colors"
+                  >
+                    <LayoutDashboard size={14} /> Admin
                   </Link>
                 )}
                 {user?.role === 'operator' && (
-                  <Link href="/operator" className="text-gray-700 border border-gray-200 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
-                    🚌 Operator
+                  <Link
+                    href="/operator"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-[#475569] border border-[#E2E8F0] px-3.5 py-2 rounded-xl hover:bg-[#F8FAFC] transition-colors"
+                  >
+                    <Bus size={14} /> Operator
                   </Link>
                 )}
-                <span className="text-sm text-gray-600 font-medium">
-                  {user?.fullName ?? user?.email ?? "Account"}
-                </span>
-                <button
-                  onClick={logout}
-                  className="text-red-600 border border-red-200 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-50 transition-colors"
-                >
-                  Log Out
-                </button>
+                {/* User dropdown */}
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setUserMenu((v) => !v)}
+                    aria-haspopup="menu"
+                    aria-expanded={userMenuOpen}
+                    className="flex items-center gap-2 text-sm font-semibold text-[#0F172A] border border-[#E2E8F0] px-3.5 py-2 rounded-xl hover:bg-[#F8FAFC] transition-colors"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-[#EFF6FF] flex items-center justify-center">
+                      <User size={12} className="text-[#2563EB]" />
+                    </div>
+                    {displayName}
+                    <ChevronDown size={14} className={`text-[#94A3B8] transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {userMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 6, scale: 0.97 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-1.5 w-44 bg-white rounded-xl border border-[#E2E8F0] shadow-lg overflow-hidden z-50"
+                      >
+                        {user?.role === 'passenger' && (
+                          <>
+                            <Link
+                              href="/dashboard"
+                              onClick={() => setUserMenu(false)}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <LayoutDashboard size={14} /> Dashboard
+                            </Link>
+                            <Link
+                              href="/tickets"
+                              onClick={() => setUserMenu(false)}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <Ticket size={14} /> My Tickets
+                            </Link>
+                            <Link
+                              href="/settings"
+                              onClick={() => setUserMenu(false)}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#475569] hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <Settings size={14} /> Settings
+                            </Link>
+                            <div className="h-px bg-[#F1F5F9]" />
+                          </>
+                        )}
+                        <button
+                          onClick={() => { logout(); setUserMenu(false); }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#DC2626] hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut size={14} /> Log Out
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </>
             ) : (
               <>
                 <Link
                   href="/operator/login"
-                  className="text-gray-700 border border-gray-200 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
+                  className="text-sm font-semibold text-[#475569] border border-[#E2E8F0] px-3.5 py-2 rounded-xl hover:bg-[#F8FAFC] transition-colors"
                 >
                   Operator Portal
                 </Link>
                 <Link
                   href="/auth/login"
-                  className="text-blue-600 border border-blue-600 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors"
+                  className="text-sm font-semibold text-[#2563EB] border border-[#2563EB] px-3.5 py-2 rounded-xl hover:bg-[#EFF6FF] transition-colors"
                 >
                   Log In
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+                  className="text-sm font-semibold text-white bg-[#2563EB] px-3.5 py-2 rounded-xl hover:bg-[#1D4ED8] transition-colors"
                 >
                   Sign Up
                 </Link>
@@ -104,84 +197,99 @@ export default function Navbar() {
 
           {/* Mobile hamburger */}
           <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="md:hidden p-2 rounded-lg text-[#475569] hover:bg-[#F8FAFC] transition-colors"
             aria-label="Toggle menu"
+            aria-expanded={menuOpen}
           >
-            {menuOpen ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
 
       {/* Mobile menu */}
-      {menuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-1">
-          {NAV_LINKS.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden overflow-hidden border-t border-[#E2E8F0]"
+          >
+            <div
+              className="bg-white px-4 py-3 flex flex-col gap-1"
               onClick={() => setMenuOpen(false)}
-              className={`text-sm font-medium py-2.5 px-3 rounded-lg transition-colors ${
-                pathname === href
-                  ? "text-blue-600 bg-blue-50"
-                  : "text-gray-700 hover:bg-gray-50"
-              }`}
             >
-              {label}
-            </Link>
-          ))}
-          <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col gap-2">
-            {isAuthenticated ? (
-              <>
-                {user?.role === 'admin' && (
-                  <Link href="/admin" onClick={() => setMenuOpen(false)}
-                    className="text-gray-700 border border-gray-200 py-2 px-4 rounded-xl text-sm font-semibold text-center hover:bg-gray-50 transition-colors">
-                    🛠 Admin Dashboard
+              {NAV_LINKS.map(({ href, label }) => {
+                const active = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-colors ${
+                      active ? 'text-[#2563EB] bg-[#EFF6FF]' : 'text-[#475569] hover:bg-[#F8FAFC]'
+                    }`}
+                  >
+                    {label}
                   </Link>
+                );
+              })}
+
+              <div className="mt-2 pt-3 border-t border-[#F1F5F9] flex flex-col gap-2">
+                {!hasHydrated ? (
+                  <div className="h-10 rounded-xl bg-[#F1F5F9] animate-pulse" aria-hidden="true" />
+                ) : isAuthenticated ? (
+                  <>
+                    {user?.role === 'admin' && (
+                      <Link href="/admin" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                        <LayoutDashboard size={14} /> Admin Dashboard
+                      </Link>
+                    )}
+                    {user?.role === 'operator' && (
+                      <Link href="/operator" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                        <Bus size={14} /> Operator Dashboard
+                      </Link>
+                    )}
+                    {user?.role === 'passenger' && (
+                      <>
+                        <Link href="/dashboard" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                          <LayoutDashboard size={14} /> Dashboard
+                        </Link>
+                        <Link href="/tickets" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                          <Ticket size={14} /> My Tickets
+                        </Link>
+                        <Link href="/settings" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                          <Settings size={14} /> Settings
+                        </Link>
+                      </>
+                    )}
+                    <p className="text-sm text-[#475569] font-medium px-3 py-1">{displayName}</p>
+                    <button
+                      onClick={() => { logout(); setMenuOpen(false); }}
+                      className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#DC2626] border border-red-200 hover:bg-red-50"
+                    >
+                      <LogOut size={14} /> Log Out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/operator/login" className="py-2.5 px-3 rounded-xl text-sm font-semibold text-center text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                      Operator Portal
+                    </Link>
+                    <Link href="/auth/login" className="py-2.5 px-3 rounded-xl text-sm font-semibold text-center text-[#2563EB] border border-[#2563EB] hover:bg-[#EFF6FF]">
+                      Log In
+                    </Link>
+                    <Link href="/auth/register" className="py-2.5 px-3 rounded-xl text-sm font-semibold text-center text-white bg-[#2563EB] hover:bg-[#1D4ED8]">
+                      Sign Up
+                    </Link>
+                  </>
                 )}
-                {user?.role === 'operator' && (
-                  <Link href="/operator" onClick={() => setMenuOpen(false)}
-                    className="text-gray-700 border border-gray-200 py-2 px-4 rounded-xl text-sm font-semibold text-center hover:bg-gray-50 transition-colors">
-                    🚌 Operator Dashboard
-                  </Link>
-                )}
-                <p className="text-sm text-gray-600 font-medium px-4 py-2">
-                  {user?.fullName ?? user?.email ?? "Account"}
-                </p>
-                <button
-                  onClick={() => { logout(); setMenuOpen(false); }}
-                  className="text-red-600 border border-red-200 py-2 px-4 rounded-xl text-sm font-semibold text-center hover:bg-red-50 transition-colors"
-                >
-                  Log Out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link href="/operator/login" onClick={() => setMenuOpen(false)}
-                  className="text-gray-700 border border-gray-200 py-2 px-4 rounded-xl text-sm font-semibold text-center hover:bg-gray-50 transition-colors">
-                  Operator Portal
-                </Link>
-                <Link href="/auth/login" onClick={() => setMenuOpen(false)}
-                  className="text-blue-600 border border-blue-600 py-2 px-4 rounded-xl text-sm font-semibold text-center hover:bg-blue-50 transition-colors">
-                  Log In
-                </Link>
-                <Link href="/auth/register" onClick={() => setMenuOpen(false)}
-                  className="bg-blue-600 text-white py-2 px-4 rounded-xl text-sm font-semibold text-center hover:bg-blue-700 transition-colors">
-                  Sign Up
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

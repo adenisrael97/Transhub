@@ -1,91 +1,135 @@
 "use client";
-import { useState } from "react";
-import Button from "@/components/ui/Button";
+import { useCallback, useState } from "react";
+import { Loader2, SlidersHorizontal, X } from "lucide-react";
 import FilterTabs from "@/components/ui/FilterTabs";
+import SearchInput from "@/components/shared/SearchInput";
+import Pagination from "@/components/shared/Pagination";
 import { STATUS_BADGE } from "@/lib/constants";
-import { capitalize } from "@/lib/utils";
+import { capitalize, formatTime } from "@/lib/utils";
+import { useServerList } from "@/hooks/useServerList";
+import { fetchBookings } from "@/services/bookings";
 
-const MOCK_BOOKINGS = [
-  { id: "BK-001", passenger: "Emeka Okafor",   route: "Lagos → Abuja",         seat: "A1", date: "26 Mar", amount: 9500,  status: "confirmed", payment: "card"     },
-  { id: "BK-002", passenger: "Fatima Aliyu",   route: "Kano → Lagos",          seat: "B2", date: "26 Mar", amount: 15000, status: "confirmed", payment: "transfer" },
-  { id: "BK-003", passenger: "Tunde Balogun",  route: "Abuja → PH",            seat: "C3", date: "26 Mar", amount: 12000, status: "pending",   payment: "ussd"     },
-  { id: "BK-004", passenger: "Chioma Eze",     route: "Lagos → Enugu",         seat: "A4", date: "25 Mar", amount: 11000, status: "completed", payment: "card"     },
-  { id: "BK-005", passenger: "Ibrahim Musa",   route: "Kaduna → Abuja",        seat: "D1", date: "25 Mar", amount: 7500,  status: "cancelled", payment: "card"     },
-];
+const STATUS_TABS = ["all", "confirmed", "pending", "cancelled", "refunded"];
 
 export default function AdminBookingsPage() {
-  const [bookings] = useState(MOCK_BOOKINGS);
-  const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
 
-  const filtered = bookings.filter((b) => {
-    const matchStatus = filter === "all" || b.status === filter;
-    const matchSearch = b.passenger.toLowerCase().includes(search.toLowerCase()) || b.route.toLowerCase().includes(search.toLowerCase());
-    return matchStatus && matchSearch;
-  });
+  const selectBookings = useCallback((res) => res.bookings ?? [], []);
+  const {
+    items: bookings, pagination, loading, error,
+    page, setPage, filters, setFilter, searchInput, setSearchInput,
+  } = useServerList({ fetcher: fetchBookings, select: selectBookings, limit: 20 });
 
-  const total = filtered.reduce((sum, b) => sum + (b.status !== "cancelled" ? b.amount : 0), 0);
+  const activeStatus = filters.status ?? "all";
+  const total = pagination?.total ?? 0;
+
+  const fieldClass =
+    "border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#0F172A] bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]";
 
   return (
-    <div className="min-h-screen bg-[#F8FAFF]">
+    <div className="min-h-screen bg-[#F8FAFC]">
       <div className="max-w-6xl mx-auto px-4 py-10">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-            <p className="text-sm text-gray-500">{bookings.length} total · ₦{total.toLocaleString()} revenue shown</p>
+            <h1 className="text-2xl font-bold text-[#0F172A]">Bookings</h1>
+            <p className="text-sm text-[#64748B]">
+              {loading ? "Loading…" : `${total.toLocaleString()} booking${total === 1 ? "" : "s"}`}
+            </p>
           </div>
-          <Button variant="secondary" size="sm">⬇ Export CSV</Button>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search passenger or route…"
-            className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <FilterTabs items={["all", "confirmed", "pending", "completed", "cancelled"]} active={filter} onChange={setFilter} />
+        {error && (
+          <div className="mb-4 bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] rounded-xl px-4 py-3 text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <SearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search ID, ref, name, email, phone, route…"
+            className="w-72 max-w-full"
+          />
+          <FilterTabs
+            items={STATUS_TABS}
+            active={activeStatus}
+            onChange={(tab) => setFilter({ status: tab === "all" ? undefined : tab })}
+          />
+          <button
+            type="button"
+            onClick={() => setShowFilters((s) => !s)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#475569] border border-[#E2E8F0] px-3 py-2 rounded-xl hover:bg-white transition-colors"
+          >
+            <SlidersHorizontal size={13} /> More
+          </button>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-50 text-left text-xs text-gray-400 font-semibold uppercase tracking-wider">
-                  <th className="px-6 py-4">Booking ID</th>
-                  <th className="px-6 py-4">Passenger</th>
-                  <th className="px-6 py-4">Route</th>
-                  <th className="px-6 py-4">Seat</th>
-                  <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4">Amount</th>
-                  <th className="px-6 py-4">Payment</th>
-                  <th className="px-6 py-4">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.map((b) => (
-                  <tr key={b.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 font-mono text-xs text-gray-500">{b.id}</td>
-                    <td className="px-6 py-4 font-semibold">{b.passenger}</td>
-                    <td className="px-6 py-4 text-gray-600">{b.route}</td>
-                    <td className="px-6 py-4 font-medium">{b.seat}</td>
-                    <td className="px-6 py-4 text-gray-500">{b.date}</td>
-                    <td className="px-6 py-4 font-semibold text-blue-600">₦{b.amount.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-gray-500 capitalize">{b.payment}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[b.status]}`}>
-                        {capitalize(b.status)}
-                      </span>
-                    </td>
+        {showFilters && (
+          <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">From date</span>
+              <input type="date" value={filters.dateFrom ?? ""} onChange={(e) => setFilter({ dateFrom: e.target.value || undefined })} className={fieldClass} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">To date</span>
+              <input type="date" value={filters.dateTo ?? ""} onChange={(e) => setFilter({ dateTo: e.target.value || undefined })} className={fieldClass} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Min ₦</span>
+              <input type="number" min="0" value={filters.minAmount ?? ""} onChange={(e) => setFilter({ minAmount: e.target.value || undefined })} className={fieldClass} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Max ₦</span>
+              <input type="number" min="0" value={filters.maxAmount ?? ""} onChange={(e) => setFilter({ maxAmount: e.target.value || undefined })} className={fieldClass} />
+            </label>
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
+          {loading ? (
+            <div className="py-16 flex flex-col items-center gap-3 text-[#94A3B8]">
+              <Loader2 size={24} className="animate-spin" />
+              <p className="text-sm">Loading bookings…</p>
+            </div>
+          ) : bookings.length === 0 ? (
+            <div className="py-16 text-center text-[#94A3B8] text-sm flex flex-col items-center gap-2">
+              <X size={22} />
+              No bookings match your filters
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider">
+                    {["Booking ID", "Route", "Payment Ref", "Seats", "Amount", "Date", "Status"].map((h) => (
+                      <th key={h} className="px-6 py-4">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filtered.length === 0 && (
-            <p className="text-center py-12 text-gray-400 text-sm">No bookings match your filter</p>
+                </thead>
+                <tbody className="divide-y divide-[#F1F5F9]">
+                  {bookings.map((b) => (
+                    <tr key={b.id} className="hover:bg-[#F8FAFC] transition-colors">
+                      <td className="px-6 py-4 font-mono text-xs text-[#94A3B8]">{b.id.slice(0, 8)}…</td>
+                      <td className="px-6 py-4 text-[#475569] text-xs">{b.trip ? `${b.trip.from} → ${b.trip.to}` : "—"}</td>
+                      <td className="px-6 py-4 font-mono text-xs text-[#64748B]">{b.paymentRef ?? "—"}</td>
+                      <td className="px-6 py-4 font-medium text-[#475569]">{b.seats.map((s) => s.label).join(", ") || "—"}</td>
+                      <td className="px-6 py-4 font-semibold text-[#2563EB]">₦{b.totalAmount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-[#64748B] text-xs">{formatTime(b.createdAt)}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[b.status] ?? STATUS_BADGE.pending}`}>
+                          {capitalize(b.status)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
+
+        <Pagination pagination={pagination} onPageChange={setPage} loading={loading} />
       </div>
     </div>
   );

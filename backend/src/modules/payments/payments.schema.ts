@@ -18,6 +18,7 @@ export const initializeSchema = z.object({
 });
 
 // Minimal webhook body shape — extra Paystack fields silently ignored by Zod.
+// metadata is typed loosely enough to handle both booking and charter payments.
 export const webhookBodySchema = z.object({
   event: z.string(),
   data:  z.object({
@@ -26,9 +27,15 @@ export const webhookBodySchema = z.object({
     amount:    z.number(),
     metadata:  z
       .object({
-        tripId:  z.uuid(),
-        seatIds: z.array(z.uuid()).min(1),
-        userId:  z.uuid(),
+        // charter payments carry type='charter' + charterId
+        type:      z.string().optional(),
+        charterId: z.uuid().optional(),
+        // waybill payments carry type='waybill' + waybillId
+        waybillId: z.uuid().optional(),
+        // booking payments carry tripId + seatIds + userId
+        tripId:    z.uuid().optional(),
+        seatIds:   z.array(z.uuid()).optional(),
+        userId:    z.uuid().optional(),
       })
       .optional(),
   }),

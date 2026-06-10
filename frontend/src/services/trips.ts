@@ -43,9 +43,30 @@ export interface TripPassengerDTO {
   passengers: PassengerInfoDTO[];
 }
 
-/** Passenger: search available trips by route, date, and passenger count. */
-export function searchTrips(params: TripSearchParams): Promise<TripsEnvelope> {
-  return api.get<TripsEnvelope, TripsEnvelope>("/trips/search", { params });
+/** Refinement filters for the passenger search page (all optional). */
+export interface TripSearchFilters {
+  vehicleType?: string;
+  minPrice?:    number;
+  maxPrice?:    number;
+  amenities?:   string[];
+  operatorId?:  string;
+  sort?:        "departure" | "price_asc" | "price_desc";
+  page?:        number;
+  limit?:       number;
+}
+
+/**
+ * Passenger: search available trips by route + date with optional refinement
+ * filters (vehicle type, price band, amenities, operator) and sort/pagination.
+ * `amenities` is sent as a CSV — the backend's csvArray parser accepts it.
+ */
+export function searchTrips(
+  params: TripSearchParams & TripSearchFilters
+): Promise<TripsEnvelope> {
+  const { amenities, ...rest } = params;
+  const query: Record<string, unknown> = { ...rest };
+  if (amenities && amenities.length) query.amenities = amenities.join(",");
+  return api.get<TripsEnvelope, TripsEnvelope>("/trips/search", { params: query });
 }
 
 /** Passenger / any: fetch a single trip with its full seat map. */
@@ -102,9 +123,24 @@ export function fetchTripPassengers(id: string): Promise<{ passengers: TripPasse
   );
 }
 
-/** Operator: list all drivers belonging to this operator (for trip assignment). */
+/**
+ * Operator: active drivers for the trip-assignment dropdown. Requests the max
+ * page size and active-only so the dropdown isn't truncated by the list
+ * endpoint's default pagination.
+ */
 export function fetchOperatorDrivers(): Promise<{ drivers: import("@/types").DriverDTO[] }> {
-  return api.get("/drivers");
+  return api.get("/drivers", { params: { limit: 100, isActive: true } });
+}
+
+/**
+ * Drivers list — server-side paginated/filtered/searchable. Operator sees their
+ * own fleet (incl. deactivated); admin sees all (optional ?operatorId).
+ * Params: page, limit, isActive, search, operatorId.
+ */
+export function fetchDrivers(params?: {
+  page?: number; limit?: number; isActive?: boolean; search?: string; operatorId?: string;
+}): Promise<{ drivers: import("@/types").DriverDTO[]; pagination?: import("@/types").PageMeta }> {
+  return api.get("/drivers", { params });
 }
 
 /** Operator: create a new driver. */

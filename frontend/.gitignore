@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Allow the committed env template (the .env* rule above ignores real env files)
+!.env.example

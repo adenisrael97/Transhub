@@ -5,18 +5,10 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Input, { Select } from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { STATUS_BADGE, CITIES } from "@/lib/constants";
+import { STATUS_BADGE, CITIES, VEHICLE_TYPES, BUS_AMENITIES } from "@/lib/constants";
 import { capitalize, formatTime } from "@/lib/utils";
 import useToastStore from "@/store/toastStore";
 import { fetchTrips, createTrip, deleteTrip, toggleTripActive, markTripFull, setTripOfflineCount, fetchOperatorDrivers } from "@/services/trips";
-
-const VEHICLE_TYPES = ["Bus", "Luxury Bus", "Coaster", "Car", "SUV"];
-
-const BUS_AMENITIES = [
-  "Air Conditioning", "WiFi", "USB Charging", "Reclining Seats",
-  "Restroom/Toilet", "TV/Entertainment", "Extra Legroom",
-  "Water/Snacks", "Luggage Space",
-];
 
 const EMPTY_FORM = {
   from: "", to: "", departureTime: "", arrivalTime: "",

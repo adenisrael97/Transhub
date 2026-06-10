@@ -1,35 +1,43 @@
 'use client';
+
 import { useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 
-/**
- * Reusable modal dialog with backdrop blur, scroll lock, close-on-backdrop-click,
- * Escape key handling, and focus trapping for accessibility.
- * Sizes: sm, md (default), lg, xl.
- * Set hideClose=true to hide the X button (used by ConfirmDialog).
- */
-const sizes = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' };
+const SIZE_MAP = {
+  sm:   'max-w-[400px]',
+  md:   'max-w-[560px]',
+  lg:   'max-w-[720px]',
+  xl:   'max-w-[900px]',
+  full: 'max-w-[95vw]',
+};
 
-export default function Modal({ isOpen, onClose, title, children, size = 'md', hideClose = false }) {
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  size      = 'md',
+  hideClose = false,
+  footer,
+}) {
   const panelRef = useRef(null);
-  const titleId = `modal-title-${title?.replace(/\s+/g, '-').toLowerCase() ?? 'dialog'}`;
+  const titleId  = `modal-${title?.replace(/\s+/g, '-').toLowerCase() ?? 'dialog'}`;
 
-  // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
-  // Focus the panel on open
   useEffect(() => {
     if (isOpen && panelRef.current) {
-      const firstFocusable = panelRef.current.querySelector(
+      const first = panelRef.current.querySelector(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       );
-      firstFocusable?.focus();
+      first?.focus();
     }
   }, [isOpen]);
 
-  // Escape key handler
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -37,60 +45,76 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', h
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
-  // Focus trap — keep Tab/Shift+Tab within the modal
   const handleKeyDown = useCallback((e) => {
     if (e.key !== 'Tab' || !panelRef.current) return;
     const focusable = panelRef.current.querySelectorAll(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
-    if (focusable.length === 0) return;
+    if (!focusable.length) return;
     const first = focusable[0];
-    const last = focusable[focusable.length - 1];
+    const last  = focusable[focusable.length - 1];
     if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
+      e.preventDefault(); last.focus();
     } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
+      e.preventDefault(); first.focus();
     }
   }, []);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onKeyDown={handleKeyDown}>
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      {/* Panel */}
-      <div
-        ref={panelRef}
-        className={`relative w-full ${sizes[size]} bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-          <h2 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h2>
-          {!hideClose && (
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-700 transition-colors p-1 rounded-lg hover:bg-gray-100"
-              aria-label="Close dialog"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
+    <AnimatePresence>
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onKeyDown={handleKeyDown}
+        >
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+
+          {/* Panel */}
+          <motion.div
+            ref={panelRef}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className={`relative w-full ${SIZE_MAP[size] ?? SIZE_MAP.md} bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] shrink-0">
+              <h2 id={titleId} className="text-lg font-semibold text-[#0F172A]">{title}</h2>
+              {!hideClose && (
+                <button
+                  onClick={onClose}
+                  className="text-[#94A3B8] hover:text-[#475569] transition-colors p-1.5 rounded-lg hover:bg-[#F1F5F9]"
+                  aria-label="Close dialog"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto p-6 flex-1">{children}</div>
+
+            {/* Footer */}
+            {footer && (
+              <div className="border-t border-[#E2E8F0] px-6 py-4 flex items-center justify-end gap-3 shrink-0">
+                {footer}
+              </div>
+            )}
+          </motion.div>
         </div>
-        {/* Body */}
-        <div className="overflow-y-auto p-6">{children}</div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }

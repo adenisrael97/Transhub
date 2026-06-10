@@ -30,11 +30,18 @@ export const paymentsController = {
 
   async verify(req: Request, res: Response): Promise<void> {
     if (!req.user) throw new UnauthorizedError();
-    const booking = await paymentsService.verifyPayment(req.params.reference as string, req.user.id);
-    if (!booking) {
+    const outcome = await paymentsService.verifyPayment(req.params.reference as string, req.user.id);
+    // 202 = still in flight (keep polling); 200 with status:'failed' = a definite
+    // failure the UI should surface (NOT a 4xx — the request itself succeeded);
+    // 200 with booking = confirmed.
+    if (outcome.state === "pending") {
       res.status(202).json({ status: "pending" });
       return;
     }
-    res.json({ booking });
+    if (outcome.state === "failed") {
+      res.json({ status: "failed", reason: outcome.reason });
+      return;
+    }
+    res.json({ booking: outcome.booking });
   },
 };

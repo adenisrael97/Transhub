@@ -1,24 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { Search, Package, AlertTriangle, PackageX } from "lucide-react";
 import Tracker from "@/components/waybill/Tracker";
 import Button from "@/components/ui/Button";
 import { useTracking } from "@/hooks/useTracking";
-import Link from "next/link";
-
-const MOCK_WAYBILL = {
-  waybillNo: "TH-000001",
-  status: "in_transit",
-  from: "Lagos", to: "Abuja",
-  senderName: "John Doe", receiverName: "Jane Smith",
-  estimatedDelivery: "March 27, 2026",
-  updates: [
-    { date: "Mar 25, 2026 – 9:00 AM",   status: "Waybill Created",            location: "Lagos" },
-    { date: "Mar 25, 2026 – 11:30 AM",  status: "Picked up from sender",      location: "Lagos" },
-    { date: "Mar 25, 2026 – 2:00 PM",   status: "Departed origin terminal",   location: "Lagos Terminal" },
-    { date: "Mar 25, 2026 – 6:30 PM",   status: "Package in transit",         location: "On the way to Abuja" },
-  ],
-};
 
 export default function TrackPage() {
   const params = useParams();
@@ -27,56 +14,86 @@ export default function TrackPage() {
   const [input, setInput] = useState(no ?? "");
   const [submitted, setSubmitted] = useState(!!no);
 
-  // If URL has waybill number, fetch on mount
   useEffect(() => {
     if (no) fetchWaybill(no).catch(() => {});
   }, [no, fetchWaybill]);
 
   function handleSearch(e) {
     e.preventDefault();
+    if (!input.trim()) return;
     setSubmitted(true);
-    fetchWaybill(input).catch(() => {});
+    fetchWaybill(input.trim()).catch(() => {});
   }
 
-  const displayWaybill = waybill ?? (submitted ? { ...MOCK_WAYBILL, waybillNo: input || MOCK_WAYBILL.waybillNo } : null);
+  const isNotFound = submitted && !loading && !waybill;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFF]">
-      <div className="bg-gray-900 py-12 px-4">
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Search header */}
+      <div className="bg-[#0F172A] py-12 px-4">
         <div className="max-w-2xl mx-auto text-center">
-          <span className="inline-block bg-blue-600/20 text-blue-300 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">Live Tracking</span>
-          <h1 className="text-3xl font-extrabold text-white mb-2">Track Your Package</h1>
-          <p className="text-gray-400 text-sm mb-8">Enter your waybill number to see real-time status</p>
+          <span className="inline-flex items-center gap-1.5 bg-[#2563EB]/20 text-[#93C5FD] text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
+            <Package size={11} /> Live Tracking
+          </span>
+          <h1 className="text-2xl font-bold text-white mb-1">Track Your Package</h1>
+          <p className="text-sm text-[#94A3B8] mb-8">Enter your waybill number to see real-time status</p>
           <form onSubmit={handleSearch} className="flex gap-2 max-w-lg mx-auto">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="e.g. TH-2024-00123"
-              className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. WB-2026-K3M9PX"
+              className="flex-1 bg-white/10 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-[#64748B] text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
               required
             />
-            <Button type="submit" loading={loading}>Track</Button>
+            <Button type="submit" loading={loading} rightIcon={<Search size={15} />}>Track</Button>
           </form>
         </div>
       </div>
 
+      {/* Results */}
       <div className="max-w-2xl mx-auto px-4 py-10">
-        {error && (
-          <div className="bg-red-50 border border-red-100 text-red-700 rounded-xl p-4 mb-6 text-sm">{error}</div>
+        {/* Error state (non-404) */}
+        {error && waybill === null && !isNotFound && (
+          <div className="flex items-center gap-2 bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] rounded-xl p-4 mb-6 text-sm">
+            <AlertTriangle size={15} className="shrink-0" /> {error}
+          </div>
         )}
 
-        {!submitted && !no ? (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-5xl mb-4">📦</p>
-            <p>Enter a waybill number above to start tracking</p>
-            <p className="text-sm mt-4">
-              Don&apos;t have a waybill yet?{" "}
-              <Link href="/send" className="text-blue-600 font-semibold hover:underline">Send Goods</Link>
+        {/* Empty state — nothing entered yet */}
+        {!submitted && !no && (
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-[#EFF6FF] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Package size={28} className="text-[#2563EB]" />
+            </div>
+            <p className="text-lg font-semibold text-[#0F172A]">Enter a waybill number above</p>
+            <p className="text-sm text-[#94A3B8] mt-1 mb-4">to start tracking your package</p>
+            <p className="text-sm text-[#94A3B8]">
+              Don&apos;t have one yet?{" "}
+              <Link href="/send" className="text-[#2563EB] font-semibold hover:underline">Send Goods</Link>
             </p>
           </div>
-        ) : (
-          <Tracker waybill={displayWaybill} />
         )}
+
+        {/* Not found state */}
+        {isNotFound && (
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-[#FEF2F2] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <PackageX size={28} className="text-[#DC2626]" />
+            </div>
+            <p className="text-lg font-semibold text-[#0F172A]">Waybill not found</p>
+            <p className="text-sm text-[#94A3B8] mt-1 mb-4">
+              No package found for <span className="font-mono font-bold text-[#0F172A]">{input}</span>.
+              Check the number and try again.
+            </p>
+            <p className="text-sm text-[#94A3B8]">
+              Want to ship a parcel?{" "}
+              <Link href="/send" className="text-[#2563EB] font-semibold hover:underline">Send Goods</Link>
+            </p>
+          </div>
+        )}
+
+        {/* Waybill found */}
+        {waybill && <Tracker waybill={waybill} />}
       </div>
     </div>
   );

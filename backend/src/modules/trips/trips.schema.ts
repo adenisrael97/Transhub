@@ -1,6 +1,7 @@
 /** Zod schemas for trips. operatorId is NOT in createTripSchema — it comes from req.user (JWT). */
 import { z } from "zod";
 import { paginationQuerySchema } from "../../shared/pagination";
+import { csvArray } from "../../shared/list-query";
 
 /**
  * Canonicalize a city name: trim, collapse internal whitespace, and Title-Case
@@ -64,12 +65,30 @@ export const createTripSchema = z
     }
   );
 
-export const searchTripsQuerySchema = z.object({
-  from:       z.string().min(1, "Origin is required").transform(normalizeCity),
-  to:         z.string().min(1, "Destination is required").transform(normalizeCity),
-  date:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
-  passengers: z.coerce.number().int().min(1).default(1),
-});
+export const searchTripsQuerySchema = z
+  .object({
+    from:       z.string().min(1, "Origin is required").transform(normalizeCity),
+    to:         z.string().min(1, "Destination is required").transform(normalizeCity),
+    date:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+    passengers: z.coerce.number().int().min(1).default(1),
+    // --- Optional refinement filters (Booking Search page) ---
+    /** Exact stored vehicle type, e.g. "Luxury Bus". */
+    vehicleType: z.string().trim().max(40).optional(),
+    /** Price band (naira). Trips with price within [minPrice, maxPrice] match. */
+    minPrice:    z.coerce.number().int().min(0).optional(),
+    maxPrice:    z.coerce.number().int().min(0).optional(),
+    /** CSV of amenity labels; a trip must offer ALL selected amenities. */
+    amenities:   csvArray,
+    /** Restrict to a single transport company. */
+    operatorId:  z.uuid().optional(),
+    /** Result ordering. departure = soonest first (default). */
+    sort:        z.enum(["departure", "price_asc", "price_desc"]).default("departure"),
+    ...paginationQuerySchema.shape,
+  })
+  .refine((d) => d.minPrice == null || d.maxPrice == null || d.minPrice <= d.maxPrice, {
+    message: "minPrice cannot exceed maxPrice",
+    path: ["maxPrice"],
+  });
 
 export const listTripsQuerySchema = z.object({
   operatorId: z.uuid().optional(),
@@ -86,6 +105,7 @@ export const setOfflineCountSchema = z.object({
 
 export type CreateTripInput      = z.infer<typeof createTripSchema>;
 export type SearchTripsQuery     = z.infer<typeof searchTripsQuerySchema>;
+export type SearchTripsInput     = z.input<typeof searchTripsQuerySchema>;
 export type ListTripsQuery       = z.infer<typeof listTripsQuerySchema>;
 export type ToggleTripInput      = z.infer<typeof toggleTripSchema>;
 export type MarkFullInput        = z.infer<typeof markFullSchema>;

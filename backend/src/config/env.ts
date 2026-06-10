@@ -33,6 +33,29 @@ const EnvSchema = z.object({
   SMTP_FROM: z.string().default("TransHub <noreply@transhub.ng>"),
   // Base URL of the frontend (used in email links)
   FRONTEND_URL: z.string().default("http://localhost:3000"),
+  // Admin email for platform notifications (charter requests, etc.). Optional — if unset,
+  // admin email notifications are skipped (logged as a warning).
+  ADMIN_EMAIL: z.string().email().optional(),
+  // Destination for contact-form submissions. Optional — submissions are logged
+  // but not emailed when unset (useful in dev without a configured inbox).
+  CONTACT_EMAIL: z.string().email().optional(),
+
+  // --- Sentry monitoring (all optional; absent DSN ⇒ Sentry is a no-op) ---
+  // Backend (server) DSN. NOT validated as a URL on purpose: a slightly-off DSN
+  // should disable Sentry, never block boot. The SDK validates + no-ops itself.
+  SENTRY_DSN: z.string().optional(),
+  // Logical environment shown in Sentry (development | staging | production).
+  // Defaults to NODE_ENV when unset.
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  // Release identifier (e.g. git SHA) for regression tracking. Optional.
+  SENTRY_RELEASE: z.string().optional(),
+  // Tracing sample rate (0–1). Defaults per-environment in instrument.ts.
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
+  // Slow-request / slow-query thresholds (ms) for performance signals.
+  SLOW_REQUEST_MS: z.coerce.number().int().positive().default(1000),
+  SLOW_QUERY_MS: z.coerce.number().int().positive().default(300),
+  // Response payload size (bytes) above which we flag a "large payload".
+  LARGE_PAYLOAD_BYTES: z.coerce.number().int().positive().default(1_000_000),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -50,9 +73,28 @@ if (!parsed.success) {
 export const env = parsed.data;
 export type Env = typeof env;
 
-// Refuse to start if production SMTP is not configured. Both are needed for
-// authenticated SMTP — failing here beats discovering it at the first email.
-if (env.NODE_ENV === "production" && (!env.SMTP_USER || !env.SMTP_PASS)) {
-  console.error("❌ SMTP_USER and SMTP_PASS are required in production");
-  process.exit(1);
+// Extra production-only guards. These values are valid in dev/test but are
+// foot-guns in production, so we refuse to boot rather than ship with them:
+//   - authenticated SMTP must be configured (else no email ever sends),
+//   - a Paystack TEST key in prod means real customers can't actually pay,
+//   - localhost CORS/FRONTEND_URL means the deployed frontend can't reach us.
+if (env.NODE_ENV === "production") {
+  const problems: string[] = [];
+  if (!env.SMTP_USER || !env.SMTP_PASS) {
+    problems.push("SMTP_USER and SMTP_PASS are required");
+  }
+  if (env.PAYSTACK_SECRET.startsWith("sk_test_")) {
+    problems.push("PAYSTACK_SECRET is a test key — use the live key (sk_live_…)");
+  }
+  if (/localhost|127\.0\.0\.1/i.test(env.CORS_ORIGIN)) {
+    problems.push("CORS_ORIGIN must not point at localhost");
+  }
+  if (/localhost|127\.0\.0\.1/i.test(env.FRONTEND_URL)) {
+    problems.push("FRONTEND_URL must not point at localhost");
+  }
+  if (problems.length > 0) {
+    console.error("❌ Invalid production configuration:");
+    for (const p of problems) console.error(`  - ${p}`);
+    process.exit(1);
+  }
 }

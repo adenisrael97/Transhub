@@ -1,46 +1,57 @@
 'use client';
-import useCharterStore from '@/store/charterStore';
 
-const VEHICLES = [
-  { id: 'suv',       label: 'SUV / Car',       icon: '🚗', seats: '1–4',   rate: 15_000 },
-  { id: 'pickup',    label: 'Pickup Truck',     icon: '🛻', seats: '1–3',   rate: 20_000 },
-  { id: 'cargo-van', label: 'Cargo Van',        icon: '🚐', seats: 'Cargo', rate: 25_000 },
-  { id: 'bus-18',    label: 'Mini Bus (18)',    icon: '🚌', seats: '18',    rate: 35_000 },
-  { id: 'coaster',   label: 'Coaster Bus (33)', icon: '🚌', seats: '33',    rate: 60_000 },
-  { id: 'bus-33',    label: 'Full Bus (33)',     icon: '🚌', seats: '33',    rate: 80_000 },
-];
+import { motion } from 'framer-motion';
+import { Car, Truck, Package, Bus } from 'lucide-react';
+import useCharterStore from '@/store/charterStore';
+import { CHARTER_VEHICLES } from '@/lib/constants';
+
+// Icons live here (lucide components can't be serialised into the shared
+// constants module); everything else comes from the single catalogue.
+const VEHICLE_ICONS = { suv: Car, pickup: Truck, 'cargo-van': Package, 'bus-18': Bus, coaster: Bus, 'bus-33': Bus };
+const VEHICLES = CHARTER_VEHICLES.map((v) => ({ ...v, icon: VEHICLE_ICONS[v.id] ?? Bus }));
 
 export default function VehicleSelector() {
   const { vehicleType, setField } = useCharterStore();
 
   return (
     <div>
-      <p className="text-sm font-semibold text-gray-700 mb-3">
+      <p className="text-sm font-semibold text-[#475569] mb-3">
         Select Vehicle Type <span className="text-red-500">*</span>
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {VEHICLES.map((v) => {
           const active = vehicleType === v.id;
+          const Icon = v.icon;
           return (
-            <button
+            <motion.button
               key={v.id}
               type="button"
+              whileTap={{ scale: 0.97 }}
               onClick={() => setField('vehicleType', v.id)}
-              className={`flex flex-col items-start gap-1 p-4 rounded-2xl border-2 text-left transition-all
-                ${active
-                  ? 'border-blue-600 bg-blue-50'
-                  : 'border-gray-100 bg-white hover:border-gray-300'
-                }`}
+              className={`relative flex flex-col items-start gap-1.5 p-4 rounded-2xl border-2 text-left transition-colors ${
+                active
+                  ? 'border-[#D97706] bg-[#FFFBEB]'
+                  : 'border-[#E2E8F0] bg-white hover:border-[#D97706]/40 hover:bg-[#FFFBEB]/50'
+              }`}
             >
-              <span className="text-2xl">{v.icon}</span>
-              <p className={`text-sm font-semibold ${active ? 'text-blue-700' : 'text-gray-800'}`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${active ? 'bg-[#D97706]' : 'bg-[#F8FAFC]'}`}>
+                <Icon size={18} className={active ? 'text-white' : 'text-[#94A3B8]'} />
+              </div>
+              <p className={`text-sm font-semibold ${active ? 'text-[#92400E]' : 'text-[#0F172A]'}`}>
                 {v.label}
               </p>
-              <p className="text-xs text-gray-400">{v.seats} seats</p>
-              <p className={`text-xs font-medium ${active ? 'text-blue-600' : 'text-gray-500'}`}>
+              <p className="text-xs text-[#94A3B8]">{v.seats} seats</p>
+              <p className={`text-xs font-semibold ${active ? 'text-[#D97706]' : 'text-[#475569]'}`}>
                 From ₦{v.rate.toLocaleString()}
               </p>
-            </button>
+              {active && (
+                <motion.div
+                  layoutId="vehicle-active-ring"
+                  className="absolute inset-0 rounded-2xl border-2 border-[#D97706] pointer-events-none"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.3 }}
+                />
+              )}
+            </motion.button>
           );
         })}
       </div>

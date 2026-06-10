@@ -46,9 +46,9 @@ export const operatorsService = {
     return operatorsRepository.findById(id);
   },
 
-  /** List operator applications (paginated), optionally filtered by status. Admin only. */
+  /** List operator applications (paginated), optionally filtered by status + search. Admin only. */
   async list(
-    filter: { status?: ListOperatorsQuery["status"] },
+    filter: { status?: ListOperatorsQuery["status"]; search?: string },
     pagination: PaginationQuery
   ): Promise<{ operators: Operator[]; pagination: PageMeta }> {
     const { items, total } = await operatorsRepository.findAll(filter, pagination);
@@ -167,5 +167,20 @@ export const operatorsService = {
 
     const updated = await operatorsRepository.findById(id);
     return updated!;
+  },
+
+  /** Compact list of approved operators — used by admin waybill assignment. */
+  async listApproved(): Promise<{ id: string; companyName: string; city: string }[]> {
+    return operatorsRepository.findApproved();
+  },
+
+  /**
+   * Public, minimal list of approved operators (id + companyName only) — powers
+   * the "Transport Company" filter on the passenger search page. Approved bus
+   * companies are public information; no contact/PII fields are exposed.
+   */
+  async listPublic(): Promise<{ id: string; companyName: string }[]> {
+    const operators = await operatorsRepository.findApproved();
+    return operators.map((o) => ({ id: o.id, companyName: o.companyName }));
   },
 };

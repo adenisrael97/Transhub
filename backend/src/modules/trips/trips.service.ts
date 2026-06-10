@@ -34,14 +34,25 @@ export const tripsService = {
     return tripsRepository.create(input, operatorId);
   },
 
-  /** Passenger searches available trips by route and date. */
-  search(query: SearchTripsQuery): Promise<TripDTO[]> {
-    return tripsRepository.search({
+  /** Passenger searches available trips by route, date, and refinement filters. */
+  async search(
+    query: SearchTripsQuery
+  ): Promise<{ trips: TripDTO[]; pagination: PageMeta }> {
+    const { items, total } = await tripsRepository.search({
       from:         query.from,
       to:           query.to,
       date:         query.date,
       minAvailable: query.passengers,
+      vehicleType:  query.vehicleType,
+      minPrice:     query.minPrice,
+      maxPrice:     query.maxPrice,
+      amenities:    query.amenities,
+      operatorId:   query.operatorId,
+      sort:         query.sort,
+      page:         query.page,
+      limit:        query.limit,
     });
+    return { trips: items, pagination: pageMeta(total, { page: query.page, limit: query.limit }) };
   },
 
   /** Fetch a single trip's detail incl. available-seat count (no auth required). */

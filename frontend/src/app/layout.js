@@ -56,7 +56,6 @@ export const metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   themeColor: "#2563EB",
 };
 
@@ -78,21 +77,49 @@ export default function RootLayout({ children }) {
         <main className="flex-1 flex flex-col">{children}</main>
         <Footer />
         <ToastContainer />
-        <Script
-          id="register-sw"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
+        {process.env.NODE_ENV === "production" ? (
+          <Script
+            id="register-sw"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
               if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
+                var registerSW = function() {
                   navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('TransHub SW registered:', reg.scope))
-                    .catch(err => console.log('SW registration failed:', err));
-                });
+                    .then(function(reg) { console.log('TransHub SW registered:', reg.scope); })
+                    .catch(function(err) { console.log('SW registration failed:', err); });
+                };
+                // This script runs afterInteractive, which can fire AFTER the
+                // 'load' event — in that case a load listener would never run and
+                // the SW would silently never register. Register immediately when
+                // the document is already complete, else wait for load.
+                if (document.readyState === 'complete') { registerSW(); }
+                else { window.addEventListener('load', registerSW); }
               }
             `,
-          }}
-        />
+            }}
+          />
+        ) : (
+          // Dev: never run the SW. Its CacheFirst strategy caches non-immutable
+          // Turbopack/HMR chunks, so after a rebuild it serves stale/404'd JS and
+          // pages render blank. Unregister any SW left over from a prod build and
+          // purge its caches so an already-poisoned browser self-heals.
+          <Script
+            id="unregister-sw"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations()
+                  .then(function(regs) { regs.forEach(function(r) { r.unregister(); }); });
+              }
+              if (window.caches && caches.keys) {
+                caches.keys().then(function(keys) { keys.forEach(function(k) { caches.delete(k); }); });
+              }
+            `,
+            }}
+          />
+        )}
       </body>
     </html>
   );

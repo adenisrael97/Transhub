@@ -61,6 +61,7 @@ function PaymentVerifier({ reference }) {
   const { clearBooking } = useBookingStore();
   const [attempt, setAttempt] = useState(0);
   const [timedOut, setTimedOut] = useState(false);
+  const [failed, setFailed]     = useState("");
   const pollRef = useRef(false);
 
   useEffect(() => {
@@ -71,16 +72,31 @@ function PaymentVerifier({ reference }) {
     const poll = async () => {
       try {
         const result = await verifyPayment(reference);
-        if (result) {
+        if (result.state === "success") {
           toast.success("Payment confirmed!");
           clearBooking();
           router.push(`/booking-success?bookingId=${result.booking.id}`);
           return;
         }
-      } catch {
-        // Verify call errored (transient 5xx after the client's own retries, or
-        // 401/403). Fall through and keep polling until MAX_POLLS, then show the
-        // timeout screen. A 401 is already redirected to login by the API client.
+        if (result.state === "failed") {
+          // Paystack reported the charge did not complete (cancelled / failed) —
+          // stop immediately and offer a retry rather than spinning for 30s.
+          clearBooking();
+          setFailed(result.reason);
+          return;
+        }
+        // state === "pending" → fall through and keep polling.
+      } catch (err) {
+        // A 4xx is a definite, non-transient failure (e.g. 403 — the reference
+        // belongs to another user; 401 is already redirected to login by the API
+        // client). Stop immediately and surface it rather than spinning for 30s.
+        // 5xx / network errors fall through and keep polling — the webhook may
+        // still be in flight and the API client already retried transient 5xx.
+        const status = err?.status;
+        if (status && status >= 400 && status < 500) {
+          setFailed(getErrorMessage(err, "We couldn't verify this payment. Please check My Tickets."));
+          return;
+        }
       }
 
       count += 1;
@@ -89,12 +105,36 @@ function PaymentVerifier({ reference }) {
         setTimedOut(true);
         return;
       }
-      setTimeout(poll, POLL_INTERVAL_MS);
+      // Jitter (±up to 1s) so a wave of clients completing payment at the same
+      // time (lunch-hour rush) doesn't poll in lockstep and stampede the API.
+      setTimeout(poll, POLL_INTERVAL_MS + Math.random() * 1000);
     };
 
     poll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (failed) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
+        <div className="max-w-sm w-full bg-white rounded-2xl border border-[#E2E8F0] p-8 text-center shadow-sm">
+          <div className="w-14 h-14 bg-[#FEE2E2] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle size={26} className="text-[#DC2626]" />
+          </div>
+          <p className="text-base font-semibold text-[#0F172A] mb-2">Payment not completed</p>
+          <p className="text-sm text-[#64748B] mb-6">{failed}</p>
+          <div className="space-y-2">
+            <Button fullWidth onClick={() => router.push("/search")}>
+              Try Again
+            </Button>
+            <Button variant="ghost" fullWidth onClick={() => router.push("/tickets")}>
+              Check My Tickets
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (timedOut) {
     return (
@@ -127,7 +167,7 @@ function PaymentVerifier({ reference }) {
         <p className="text-sm text-[#64748B]">
           This takes a few seconds. Please don&apos;t close this tab.
         </p>
-        {attempt > 3 && (
+        {attempt >= 1 && (
           <p className="mt-4 text-xs text-[#94A3B8]">Still checking… ({attempt}/{MAX_POLLS})</p>
         )}
       </div>

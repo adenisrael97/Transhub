@@ -11,9 +11,9 @@
 import { Router } from "express";
 import { authenticate } from "../../middleware/authenticate";
 import { requireRole } from "../../middleware/rbac";
-import { validateBody, validateId } from "../../middleware/validate";
+import { validateBody, validateId, validateQuery } from "../../middleware/validate";
 import { driversController } from "./drivers.controller";
-import { createDriverSchema, updateDriverSchema } from "./drivers.schema";
+import { createDriverSchema, updateDriverSchema, listDriversQuerySchema } from "./drivers.schema";
 
 export const driversRouter = Router();
 
@@ -25,10 +25,12 @@ driversRouter.post(
   driversController.create
 );
 
+// Operator (own fleet) or admin (all operators, optional ?operatorId). Paginated + searchable.
 driversRouter.get(
   "/",
   authenticate,
-  requireRole("operator"),
+  requireRole("operator", "admin"),
+  validateQuery(listDriversQuerySchema),
   driversController.list
 );
 

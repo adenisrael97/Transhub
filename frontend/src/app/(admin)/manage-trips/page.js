@@ -238,7 +238,7 @@ export default function AdminTripsPage() {
                 {" "}of{" "}
                 <span className="font-semibold text-[#0F172A]">{total.toLocaleString()}</span>
                 {" "}trip{total !== 1 ? "s" : ""}
-                {search && <span className="text-[#2563EB]"> for "{search}"</span>}
+                {search && <span className="text-[#2563EB]"> for &ldquo;{search}&rdquo;</span>}
               </p>
 
               {/* Page controls */}

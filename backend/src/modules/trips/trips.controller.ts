@@ -36,8 +36,8 @@ export const tripsController = {
    */
   async search(req: Request, res: Response): Promise<void> {
     const query = searchTripsQuerySchema.parse(req.query);
-    const trips = await tripsService.search(query);
-    res.json({ trips });
+    const result = await tripsService.search(query);
+    res.json(result);
   },
 
   /** GET /trips/:id — no auth required. */

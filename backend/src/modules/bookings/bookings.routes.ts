@@ -2,8 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../../middleware/authenticate";
 import { requireRole } from "../../middleware/rbac";
 import { validateBody, validateQuery, validateId } from "../../middleware/validate";
-import { paginationQuerySchema } from "../../shared/pagination";
-import { holdSchema } from "./bookings.schema";
+import { holdSchema, listBookingsQuerySchema } from "./bookings.schema";
 import { bookingsController } from "./bookings.controller";
 
 export const bookingsRouter = Router();
@@ -27,7 +26,7 @@ bookingsRouter.get(
   "/",
   authenticate,
   requireRole("passenger", "admin", "operator"),
-  validateQuery(paginationQuerySchema),
+  validateQuery(listBookingsQuerySchema),
   bookingsController.list
 );
 

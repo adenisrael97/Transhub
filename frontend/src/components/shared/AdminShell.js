@@ -1,57 +1,83 @@
-"use client";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import AuthGuard from "@/components/shared/AuthGuard";
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { LayoutDashboard, Bus, Ticket, Building2, BarChart3, CalendarRange, Package, Settings, Users, Receipt } from 'lucide-react';
+import AuthGuard from '@/components/shared/AuthGuard';
 
 const NAV = [
-  { label: "Dashboard",  icon: "🏠", href: "/admin"     },
-  { label: "Trips",      icon: "🚌", href: "/manage-trips"     },
-  { label: "Bookings",   icon: "🎫", href: "/bookings"  },
-  { label: "Operators",  icon: "🏢", href: "/operators" },
-  { label: "Analytics",  icon: "📊", href: "/analytics" },
+  { label: 'Dashboard',    icon: LayoutDashboard, href: '/admin'          },
+  { label: 'Trips',        icon: Bus,             href: '/manage-trips'   },
+  { label: 'Bookings',     icon: Ticket,          href: '/bookings'       },
+  { label: 'Charters',     icon: CalendarRange,   href: '/charters'       },
+  { label: 'Waybills',     icon: Package,         href: '/waybills'       },
+  { label: 'Transactions', icon: Receipt,         href: '/transactions'   },
+  { label: 'Customers',    icon: Users,           href: '/customers'      },
+  { label: 'Operators',    icon: Building2,       href: '/operators'      },
+  { label: 'Analytics',    icon: BarChart3,       href: '/analytics'      },
+  { label: 'Settings',     icon: Settings,        href: '/admin/settings' },
 ];
 
 export default function AdminShell({ children }) {
   const pathname = usePathname();
+
   return (
     <AuthGuard role="admin">
-    <div className="flex min-h-[calc(100vh-64px)]">
-      {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-56 shrink-0 bg-white border-r border-gray-100 pt-6 pb-4 gap-1 px-3">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-3 mb-3">Admin</p>
-        {NAV.map((n) => {
-          const active = pathname === n.href;
-          return (
-            <Link key={n.href} href={n.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                active ? "bg-blue-50 text-blue-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              }`}>
-              <span className="text-base">{n.icon}</span>
-              {n.label}
-            </Link>
-          );
-        })}
-      </aside>
+      <div className="flex min-h-[calc(100vh-64px)]">
+        {/* Sidebar */}
+        <aside className="hidden md:flex flex-col w-56 shrink-0 bg-white border-r border-[#E2E8F0] pt-6 pb-4 gap-1 px-3">
+          <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest px-3 mb-4">Admin Panel</p>
+          {NAV.map((n) => {
+            const active = pathname === n.href || (n.href !== '/admin' && pathname.startsWith(n.href));
+            const Icon = n.icon;
+            return (
+              <Link
+                key={n.href}
+                href={n.href}
+                className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                  active
+                    ? 'text-[#2563EB] bg-[#EFF6FF]'
+                    : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]'
+                }`}
+              >
+                <Icon size={16} className={active ? 'text-[#2563EB]' : 'text-[#94A3B8]'} />
+                {n.label}
+                {active && (
+                  <motion.div
+                    layoutId="admin-nav-indicator"
+                    className="absolute left-0 w-1 h-5 bg-[#2563EB] rounded-r-full"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </aside>
 
-      {/* Mobile bottom bar */}
-      <div className="fixed bottom-0 inset-x-0 z-40 md:hidden flex bg-white border-t border-gray-100 divide-x divide-gray-100">
-        {NAV.map((n) => {
-          const active = pathname === n.href;
-          return (
-            <Link key={n.href} href={n.href}
-              className={`flex-1 flex flex-col items-center py-2.5 text-xs font-semibold transition-colors ${
-                active ? "text-blue-600" : "text-gray-400"
-              }`}>
-              <span className="text-xl">{n.icon}</span>
-              {n.label}
-            </Link>
-          );
-        })}
+        {/* Mobile bottom bar */}
+        <div className="fixed bottom-0 inset-x-0 z-40 md:hidden flex bg-white border-t border-[#E2E8F0] safe-area-bottom">
+          {NAV.map((n) => {
+            const active = pathname === n.href || (n.href !== '/admin' && pathname.startsWith(n.href));
+            const Icon = n.icon;
+            return (
+              <Link
+                key={n.href}
+                href={n.href}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold transition-colors ${
+                  active ? 'text-[#2563EB]' : 'text-[#94A3B8]'
+                }`}
+              >
+                <Icon size={20} />
+                {n.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 pb-20 md:pb-0">{children}</div>
       </div>
-
-      {/* Page content */}
-      <div className="flex-1 min-w-0 pb-20 md:pb-0">{children}</div>
-    </div>
     </AuthGuard>
   );
 }

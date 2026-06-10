@@ -1,36 +1,48 @@
 "use client";
 
+import { useEffect } from "react";
+import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
+import { AlertCircle, RefreshCw, Home } from "lucide-react";
+
 export default function GlobalError({ error, reset }) {
+  // Report runtime / render / route errors caught by this segment boundary.
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
       <div className="text-center max-w-md">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+        <div className="w-20 h-20 bg-[#FEF2F2] rounded-3xl flex items-center justify-center mx-auto mb-6">
+          <AlertCircle size={36} className="text-[#DC2626]" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">Something Went Wrong</h1>
-        <p className="text-gray-500 mb-2 leading-relaxed">
+
+        <h1 className="text-2xl font-bold text-[#0F172A] mb-3">Something Went Wrong</h1>
+        <p className="text-[#64748B] mb-2 leading-relaxed">
           An unexpected error occurred. Don&apos;t worry — your data is safe.
         </p>
+
+        {/* Dev only: shows raw error message for debugging; hidden in production */}
         {process.env.NODE_ENV === "development" && error?.message && (
-          <pre className="text-xs text-left bg-red-50 border border-red-100 rounded-xl p-4 mb-6 overflow-x-auto text-red-700">
+          <pre className="text-xs text-left bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 mb-6 overflow-x-auto text-[#DC2626] mt-4">
             {error.message}
           </pre>
         )}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
           <button
             onClick={reset}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-colors"
+            className="inline-flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-6 py-3 rounded-xl text-sm font-semibold transition-colors"
           >
-            Try Again
+            <RefreshCw size={15} /> Try Again
           </button>
-          <a
+          <Link
             href="/"
-            className="border border-gray-200 hover:bg-gray-50 text-gray-700 px-6 py-3 rounded-xl text-sm font-semibold transition-colors"
+            className="inline-flex items-center justify-center gap-2 border border-[#E2E8F0] hover:bg-white text-[#475569] px-6 py-3 rounded-xl text-sm font-semibold transition-colors"
           >
-            Go Home
-          </a>
+            <Home size={15} /> Go Home
+          </Link>
         </div>
       </div>
     </div>

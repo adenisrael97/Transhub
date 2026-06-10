@@ -46,13 +46,52 @@ export interface Trip {
   offlineCount?: number;
   createdAt?: string;
   seats?: Seat[];
+  parkName?: string | null;
+  amenities?: string[];
 }
 
 export interface TripSearchParams {
   from: string;
   to: string;
   date: string;
-  passengers: string;
+  passengers: string | number;
+}
+
+/** Backend pagination meta block, returned alongside every list array. */
+export interface PageMeta {
+  page:       number;
+  limit:      number;
+  total:      number;
+  totalPages: number;
+}
+
+/** Query params common to the server-side list endpoints. */
+export type ListParams = Record<string, string | number | boolean | undefined>;
+
+/** Admin directory row (GET /users) — safe user + activity counts. */
+export interface AdminUser {
+  id:         string;
+  fullName:   string;
+  email:      string;
+  phone:      string;
+  role:       string;
+  operatorId: string | null;
+  createdAt:  string;
+  counts:     { bookings: number; charters: number; waybills: number };
+}
+
+/** A unified payment/transaction row (GET /transactions). */
+export interface Transaction {
+  reference:     string;
+  type:          "booking" | "charter" | "waybill";
+  amount:        number;
+  status:        string;
+  customerName:  string;
+  customerEmail: string | null;
+  description:   string;
+  relatedId:     string;
+  operatorId:    string | null;
+  createdAt:     string;
 }
 
 export interface Passenger {
@@ -168,11 +207,14 @@ export interface WaybillPayload {
 
 export type WaybillStatus =
   | "pending"
+  | "quote_sent"
   | "paid"
+  | "dropped_off"
+  | "picked_up"
   | "in_transit"
-  | "arrived"
-  | "delivered"
-  | "returned";
+  | "arrived_at_hub"
+  | "completed"
+  | "cancelled";
 
 export interface WaybillEvent {
   id:        string;
@@ -182,23 +224,46 @@ export interface WaybillEvent {
   createdAt: string;
 }
 
+export interface WaybillOperator {
+  id:          string;
+  companyName: string;
+}
+
 export interface Waybill {
-  id:            string;
-  waybillNo:     string;
-  status:        WaybillStatus;
-  fromLocation:  string;
-  toLocation:    string;
-  senderName:    string;
-  senderPhone:   string;
-  recipientName:  string;
-  recipientPhone: string;
-  description:   string;
-  weightKg?:     string | null;
-  declaredValue?: string | null;
-  fee:           string;
-  paidAt?:       string | null;
-  createdAt:     string;
-  events:        WaybillEvent[];
+  id:                 string;
+  waybillNo:          string;
+  userId:             string;
+  status:             WaybillStatus;
+  fromLocation:       string;
+  toLocation:         string;
+  senderName:         string;
+  senderPhone?:       string;
+  recipientName:      string;
+  recipientPhone?:    string;
+  description:        string;
+  weightKg?:          string | null;
+  declaredValue?:     string | null;
+  fee:                string;
+  quoteNote?:         string | null;
+  assignedOperator?:  WaybillOperator | null;
+  assignedOperatorId?: string | null;
+  paymentRef?:        string | null;
+  paidAt?:            string | null;
+  quoteSentAt?:       string | null;
+  droppedOffAt?:      string | null;
+  pickedUpAt?:        string | null;
+  inTransitAt?:       string | null;
+  arrivedAt?:         string | null;
+  completedAt?:       string | null;
+  createdAt:          string;
+  updatedAt:          string;
+  events:             WaybillEvent[];
+}
+
+export interface ApprovedOperator {
+  id:          string;
+  companyName: string;
+  city:        string;
 }
 
 export type ToastType = "success" | "error" | "info" | "warning";
