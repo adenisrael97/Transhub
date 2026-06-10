@@ -9,7 +9,7 @@
  */
 import { Server } from "socket.io";
 import type { Server as HttpServer } from "http";
-import { env } from "../../config/env";
+import { corsOrigins } from "../../config/env";
 import { logger } from "../logger";
 import { eventBus } from "../events";
 import { verifyAccessToken } from "../../shared/tokens";
@@ -19,7 +19,7 @@ let io: Server | null = null;
 export function initSocketServer(httpServer: HttpServer): Server {
   io = new Server(httpServer, {
     cors: {
-      origin:      env.CORS_ORIGIN,
+      origin:      corsOrigins,
       credentials: true,
     },
     transports: ["websocket", "polling"],

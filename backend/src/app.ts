@@ -15,7 +15,7 @@ import helmet from "helmet";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import swaggerUi from "swagger-ui-express";
-import { env } from "./config/env";
+import { env, corsOrigins } from "./config/env";
 import { logger } from "./infra/logger";
 import { requestId } from "./middleware/request-id";
 import { observability } from "./middleware/observability";
@@ -60,7 +60,7 @@ export function createApp(): Express {
     scriptSrc:  ["'self'"],
     styleSrc:   ["'self'", "'unsafe-inline'"],
     imgSrc:     ["'self'", "data:"],
-    connectSrc: ["'self'", env.CORS_ORIGIN, env.FRONTEND_URL],
+    connectSrc: ["'self'", ...corsOrigins, env.FRONTEND_URL],
     fontSrc:    ["'self'"],
     objectSrc:  ["'none'"],
     frameSrc:   ["'none'"],
@@ -78,7 +78,7 @@ export function createApp(): Express {
     })
   );
   app.use(cors({
-    origin:      env.CORS_ORIGIN,
+    origin:      corsOrigins,
     credentials: true,
     methods:     ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id"],

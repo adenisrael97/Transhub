@@ -8,11 +8,42 @@
 import "dotenv/config"; // load .env into process.env before anything reads it
 import { z } from "zod";
 
+/**
+ * Validate that a value is an absolute http(s) URL and return its canonical
+ * origin (scheme://host[:port], no path or trailing slash). Throws on a bare
+ * host like "app.vercel.app".
+ *
+ * Why this matters: a scheme-less CORS origin silently breaks the browser. The
+ * `cors` package echoes the configured string verbatim as
+ * Access-Control-Allow-Origin, but the browser compares it against the request's
+ * Origin header — which ALWAYS includes the scheme. "app.vercel.app" never
+ * equals "https://app.vercel.app", so every cross-origin response is discarded
+ * and the frontend sees an opaque "Network Error". Failing boot here turns that
+ * impossible-to-diagnose runtime symptom into a clear startup error.
+ */
+function toHttpOrigin(value: string, label: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(
+      `${label} must be an absolute URL with a scheme (e.g. https://app.example.com), got "${value}"`
+    );
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`${label} scheme must be http or https, got "${value}"`);
+  }
+  return url.origin;
+}
+
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.url(),
   REDIS_URL: z.url(),
+  // CORS allowlist. Comma-separated so the prod domain and Vercel preview URLs
+  // can coexist (e.g. "https://transhub.ng,https://transhub-woad.vercel.app").
+  // Each entry is validated + normalized below into `corsOrigins`.
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
   // Must be a valid ms-style duration so an invalid value is caught at boot
@@ -72,6 +103,27 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export type Env = typeof env;
+
+// Validate + normalize origin config. Runs in EVERY environment: a scheme-less
+// CORS_ORIGIN or FRONTEND_URL is a foot-gun anywhere, and the failure mode (an
+// opaque browser "Network Error" on every API call) is miserable to debug.
+export let corsOrigins: string[];
+try {
+  corsOrigins = env.CORS_ORIGIN.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => toHttpOrigin(s, "CORS_ORIGIN"));
+  if (corsOrigins.length === 0) {
+    throw new Error("CORS_ORIGIN must list at least one origin");
+  }
+  // FRONTEND_URL is the single browser origin used as a base for email/callback
+  // links; normalize it (strip any path/trailing slash) and enforce a scheme.
+  env.FRONTEND_URL = toHttpOrigin(env.FRONTEND_URL, "FRONTEND_URL");
+} catch (e) {
+  console.error("❌ Invalid environment variables:");
+  console.error(`  - ${(e as Error).message}`);
+  process.exit(1);
+}
 
 // Extra production-only guards. These values are valid in dev/test but are
 // foot-guns in production, so we refuse to boot rather than ship with them:
