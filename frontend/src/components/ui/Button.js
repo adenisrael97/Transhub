@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
 const variants = {
@@ -37,6 +36,9 @@ export default function Button({
     'inline-flex items-center justify-center rounded-xl font-semibold transition-all duration-200',
     'focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:ring-offset-2',
     'disabled:opacity-50 disabled:cursor-not-allowed',
+    // Tap feedback in pure CSS (replaces framer-motion whileTap) — no JS, no
+    // runtime bundle on the global critical path. Disabled/loading buttons skip it.
+    'active:enabled:scale-[0.97]',
     variants[variant] ?? variants.primary,
     sizes[size] ?? sizes.md,
     fullWidth ? 'w-full' : '',
@@ -53,7 +55,7 @@ export default function Button({
   );
 
   // Polymorphic: render as a custom element/component (e.g. next/link) with
-  // button styling. Skips the motion/disabled props that only apply to <button>.
+  // button styling. Skips the disabled prop that only applies to <button>.
   if (Component !== 'button') {
     return (
       <Component className={classes} {...props}>
@@ -63,13 +65,12 @@ export default function Button({
   }
 
   return (
-    <motion.button
-      whileTap={!disabled && !loading ? { scale: 0.97 } : {}}
+    <button
       disabled={disabled || loading}
       className={classes}
       {...props}
     >
       {content}
-    </motion.button>
+    </button>
   );
 }

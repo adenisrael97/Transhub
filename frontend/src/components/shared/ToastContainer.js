@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import useToastStore from '@/store/toastStore';
 
@@ -51,13 +50,8 @@ function Toast({ toast, onRemove }) {
   }, []);
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 80, scale: 0.95 }}
-      transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-      className={`relative w-80 rounded-xl border shadow-lg overflow-hidden pointer-events-auto ${cfg.bg}`}
+    <div
+      className={`relative w-80 rounded-xl border shadow-lg overflow-hidden pointer-events-auto animate-in fade-in slide-in-from-bottom-3 zoom-in-95 duration-300 ${cfg.bg}`}
       role="alert"
     >
       <div className="flex items-start gap-3 px-4 pt-3.5 pb-4">
@@ -76,7 +70,7 @@ function Toast({ toast, onRemove }) {
         ref={barRef}
         className={`absolute bottom-0 left-0 h-0.5 w-full ${cfg.bar}`}
       />
-    </motion.div>
+    </div>
   );
 }
 
@@ -85,11 +79,9 @@ export default function ToastContainer() {
 
   return (
     <div className="fixed bottom-4 right-4 z-200 flex flex-col gap-2 pointer-events-none">
-      <AnimatePresence initial={false}>
-        {toasts.map((t) => (
-          <Toast key={t.id} toast={t} onRemove={removeToast} />
-        ))}
-      </AnimatePresence>
+      {toasts.map((t) => (
+        <Toast key={t.id} toast={t} onRemove={removeToast} />
+      ))}
     </div>
   );
 }

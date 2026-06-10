@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bus, Menu, X, LogOut, LayoutDashboard, ChevronDown, User, Settings, Ticket
 } from 'lucide-react';
@@ -125,15 +124,17 @@ export default function Navbar() {
                     {displayName}
                     <ChevronDown size={14} className={`text-[#94A3B8] transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
-                  <AnimatePresence>
-                    {userMenuOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 6, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 6, scale: 0.97 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 mt-1.5 w-44 bg-white rounded-xl border border-[#E2E8F0] shadow-lg overflow-hidden z-50"
-                      >
+                  {/* CSS-animated dropdown (replaces framer-motion). Kept mounted so
+                      enter + exit both transition; hidden from a11y/pointer when closed. */}
+                  <div
+                    role="menu"
+                    inert={!userMenuOpen ? true : undefined}
+                    className={`absolute right-0 mt-1.5 w-44 bg-white rounded-xl border border-[#E2E8F0] shadow-lg overflow-hidden z-50 origin-top-right transition-all duration-150 ${
+                      userMenuOpen
+                        ? 'opacity-100 scale-100 translate-y-0'
+                        : 'opacity-0 scale-[0.97] translate-y-1.5 pointer-events-none'
+                    }`}
+                  >
                         {user?.role === 'passenger' && (
                           <>
                             <Link
@@ -166,9 +167,7 @@ export default function Navbar() {
                         >
                           <LogOut size={14} /> Log Out
                         </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  </div>
                 </div>
               </>
             ) : (
@@ -207,16 +206,16 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile menu */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="md:hidden overflow-hidden border-t border-[#E2E8F0]"
-          >
+      {/* Mobile menu — CSS grid-rows collapse (replaces framer-motion height
+          animation). Kept mounted so it animates both ways; `inert` when closed
+          keeps the collapsed links out of tab order and the a11y tree. */}
+      <div
+        inert={!menuOpen ? true : undefined}
+        className={`md:hidden grid transition-all duration-200 ${
+          menuOpen ? 'grid-rows-[1fr] opacity-100 border-t border-[#E2E8F0]' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="overflow-hidden">
             <div
               className="bg-white px-4 py-3 flex flex-col gap-1"
               onClick={() => setMenuOpen(false)}
@@ -287,9 +286,8 @@ export default function Navbar() {
                 )}
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      </div>
     </nav>
   );
 }
