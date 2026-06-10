@@ -12,13 +12,15 @@ import { logger } from "../logger";
 // understands natively (no version conflicts with the project's own ioredis).
 function parseRedisUrl(url: string): ConnectionOptions {
   const parsed = new URL(url);
+  const isTls = parsed.protocol === "rediss:";
   return {
     host:                parsed.hostname || "localhost",
-    port:                parseInt(parsed.port || "6379", 10),
+    port:                parseInt(parsed.port || (isTls ? "6380" : "6379"), 10),
     password:            parsed.password || undefined,
     db:                  parsed.pathname ? parseInt(parsed.pathname.slice(1) || "0", 10) : 0,
     maxRetriesPerRequest: null,
     enableReadyCheck:    false,
+    ...(isTls && { tls: {} }),
   };
 }
 
