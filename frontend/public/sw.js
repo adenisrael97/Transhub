@@ -15,7 +15,7 @@
 //   PAGE  everything else     → NetworkFirst → offline fallback (NOT cached)
 //   API   trips/bookings/payments + any non-GET → NetworkOnly (pass through)
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const STATIC_CACHE = `transhub-static-${VERSION}`;
 const PAGE_TICKET_LIST = 'tickets-list';
 const PAGE_TICKET_DETAIL = 'tickets-detail';

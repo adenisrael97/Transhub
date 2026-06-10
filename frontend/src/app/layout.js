@@ -85,8 +85,31 @@ export default function RootLayout({ children }) {
               __html: `
               if ('serviceWorker' in navigator) {
                 var registerSW = function() {
+                  // Capture controller state BEFORE registration resolves so we can
+                  // distinguish a first install (no prior controller → no reload) from
+                  // an update (existing controller replaced → reload to get new bundles).
+                  var hadController = !!navigator.serviceWorker.controller;
+
+                  // When skipWaiting()+clients.claim() fire in the new SW, every
+                  // controlled tab gets a controllerchange event. Reload once to
+                  // ensure the running page uses the new JS/CSS bundles.
+                  navigator.serviceWorker.addEventListener('controllerchange', function() {
+                    if (!hadController) return; // first install — page is already fresh
+                    // sessionStorage survives same-tab reloads; prevents infinite loop
+                    // if the new SW also triggers controllerchange on the reload.
+                    if (sessionStorage.getItem('sw-reloaded')) return;
+                    sessionStorage.setItem('sw-reloaded', '1');
+                    window.location.reload();
+                  });
+
                   navigator.serviceWorker.register('/sw.js')
-                    .then(function(reg) { console.log('TransHub SW registered:', reg.scope); })
+                    .then(function(reg) {
+                      console.log('TransHub SW registered:', reg.scope);
+                      // Check for updates hourly. The browser checks on every navigation
+                      // by default, but long-lived sessions would otherwise miss new
+                      // deployments until the user navigates or reopens the tab.
+                      setInterval(function() { reg.update(); }, 60 * 60 * 1000);
+                    })
                     .catch(function(err) { console.log('SW registration failed:', err); });
                 };
                 // This script runs afterInteractive, which can fire AFTER the

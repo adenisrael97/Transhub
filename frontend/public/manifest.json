@@ -60,14 +60,6 @@
       "purpose": "maskable any"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshots/home.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "label": "TransHub Home"
-    }
-  ],
   "shortcuts": [
     {
       "name": "Book a Seat",
