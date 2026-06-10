@@ -29,12 +29,9 @@ import { notificationsWorker } from "./modules/notifications"; // registers even
 import { flushSentry } from "./infra/sentry";
 
 async function main(): Promise<void> {
-  await connectDb();
-  await connectRedis();
-  startHoldExpiryWorker(processHoldExpiry);
-  startSeatSweepWorker(processSeatSweep);
-  await scheduleSeatSweep();
-
+  // Bind the HTTP port FIRST so the platform's health probe (/healthz) can be
+  // reached immediately. Dependency connects happen afterwards and must never
+  // gate the listener — a flapping Redis must not turn into a failed deploy.
   const app = createApp();
   const server = createServer(app);
   initSocketServer(server);
@@ -42,6 +39,21 @@ async function main(): Promise<void> {
   server.listen(env.PORT, () => {
     logger.info(`🚀 Server listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
   });
+
+  // Connect dependencies in the background. ioredis and Prisma queue commands
+  // until their connection is ready and each self-heals via its retryStrategy,
+  // so the process boots "degraded" and recovers rather than hanging on boot.
+  void connectDb().catch((err) =>
+    logger.error({ err }, "Initial Postgres connect failed (will retry on demand)")
+  );
+  void connectRedis().catch((err) =>
+    logger.error({ err }, "Initial Redis connect failed (will retry in background)")
+  );
+  startHoldExpiryWorker(processHoldExpiry);
+  startSeatSweepWorker(processSeatSweep);
+  void scheduleSeatSweep().catch((err) =>
+    logger.error({ err }, "Failed to schedule seat sweep (will retry on next boot)")
+  );
 
   let shuttingDown = false;
   const shutdown = (signal: string): void => {

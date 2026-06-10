@@ -16,11 +16,22 @@ function parseRedisUrl(url: string): ConnectionOptions {
   return {
     host:                parsed.hostname || "localhost",
     port:                parseInt(parsed.port || (isTls ? "6380" : "6379"), 10),
-    password:            parsed.password || undefined,
+    // URL components are percent-encoded; decode so passwords with special
+    // characters authenticate. Managed providers use ACL auth ("default:<pw>"),
+    // so the username MUST be sent — dropping it makes the server reset the
+    // socket (the ECONNRESET seen on the workers).
+    username:            parsed.username ? decodeURIComponent(parsed.username) : undefined,
+    password:            parsed.password ? decodeURIComponent(parsed.password) : undefined,
     db:                  parsed.pathname ? parseInt(parsed.pathname.slice(1) || "0", 10) : 0,
     maxRetriesPerRequest: null,
     enableReadyCheck:    false,
-    ...(isTls && { tls: {} }),
+    // Managed Redis resets idle/blocking connections; self-heal with capped
+    // backoff and reconnect (replaying the in-flight command) on socket errors
+    // or a failover that leaves us on a read-only replica.
+    retryStrategy:       (times) => Math.min(times * 200, 5000),
+    reconnectOnError:    (err) => /READONLY|ECONNRESET|ETIMEDOUT|EPIPE/.test(err.message),
+    // Pass the SNI server name explicitly — some TLS endpoints route by it.
+    ...(isTls && { tls: { servername: parsed.hostname } }),
   };
 }
 

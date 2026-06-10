@@ -22,6 +22,20 @@ function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
   ]);
 }
 
+/**
+ * Liveness — is the process up and the event loop responsive? This MUST NOT
+ * touch external dependencies: a flapping Redis/Postgres should never cause the
+ * platform to refuse a rollout or kill an otherwise-running process. Point the
+ * deploy platform's health-check path here (e.g. Render "Health Check Path").
+ */
+healthRouter.get("/healthz", (_req, res) => {
+  res.status(200).json({ status: "ok", uptime: Math.round(process.uptime()) });
+});
+
+/**
+ * Readiness — are dependencies reachable? Returns 503 when DB or Redis is down.
+ * Use this for LB traffic gating / dashboards, NOT as the deploy health gate.
+ */
 healthRouter.get("/health", async (_req, res) => {
   const checks = { db: "down", redis: "down" };
 
