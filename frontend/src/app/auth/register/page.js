@@ -31,6 +31,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return; // ignore re-entrant submits before the button disables
     setError("");
     setFieldErrors({});
 
@@ -44,8 +45,11 @@ export default function RegisterPage() {
     try {
       const { fullName, email, phone, password } = result.data;
       await signUp({ fullName, email, phone, password });
-    } catch {
-      setError("Registration failed. Please try again.");
+    } catch (err) {
+      // Surface the backend's message (e.g. "An account with this email already
+      // exists") instead of a blanket failure — the old hardcoded string hid the
+      // real reason and looked like an unstable/failed request.
+      setError(err?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }

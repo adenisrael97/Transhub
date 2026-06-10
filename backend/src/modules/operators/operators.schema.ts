@@ -14,7 +14,10 @@ export const registerOperatorSchema = z.object({
   vehicleTypes:     z.array(z.string().min(1)).min(1, "Select at least one vehicle type"),
   routes:           z.string().min(5,  "Please describe your routes"),
   yearsInOperation: z.string().min(1,  "Years in operation is required"),
-  cacNumber:        z.string().min(2,  "CAC registration number is required"),
+  // Optional for sole proprietors — mirrors the registration form's "Optional"
+  // hint and the frontend operatorRegistrationSchema. An omitted/empty value
+  // normalises to "" so the NOT NULL `operators.cacNumber` column is satisfied.
+  cacNumber:        z.string().optional().default(""),
   additionalInfo:   z.string().optional(),
 });
 

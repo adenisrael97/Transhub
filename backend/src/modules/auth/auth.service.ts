@@ -4,6 +4,7 @@
  * and token signing.
  */
 import argon2 from "argon2";
+import { Prisma, type User } from "@prisma/client";
 import { createHash, randomBytes } from "node:crypto";
 import { ConflictError, UnauthorizedError, ValidationError } from "../../shared/errors";
 import { ARGON2_OPTIONS } from "../../shared/security";
@@ -45,13 +46,26 @@ export const authService = {
     }
 
     const passwordHash = await argon2.hash(input.password, ARGON2_OPTIONS);
-    const user = await usersService.create({
-      fullName: input.fullName,
-      email: input.email,
-      phone: input.phone,
-      password: passwordHash,
-      // role defaults to "passenger" at the DB layer
-    });
+    let user: User;
+    try {
+      user = await usersService.create({
+        fullName: input.fullName,
+        email: input.email,
+        phone: input.phone,
+        password: passwordHash,
+        // role defaults to "passenger" at the DB layer
+      });
+    } catch (err) {
+      // The findByEmail pre-check above is not a lock: two concurrent signups (or
+      // a duplicated request) with the same email can both pass it and race into
+      // create(), where the `users.email` @unique constraint lets only one win.
+      // Map the loser's P2002 to the same clean conflict the pre-check returns so
+      // the client never sees the central handler's generic "Resource already exists".
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new ConflictError("An account with this email already exists");
+      }
+      throw err;
+    }
 
     const authUser = usersService.toAuthUser(user);
     return { token: signAccessToken(authUser), user: authUser };

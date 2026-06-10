@@ -61,6 +61,7 @@ export default function RegisterOperatorPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (loading) return; // ignore re-entrant submits before the button disables
     if (form.vehicleTypes.length === 0) { setError("Please select at least one vehicle type."); return; }
     setLoading(true);
     setError("");

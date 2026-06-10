@@ -4,7 +4,7 @@
  * - Auto-attached JWT token on every request
  * - Auto-unwrapped response.data
  * - 401 handler that clears auth store and redirects to login
- * - Automatic retry on 5xx / network errors (2 attempts)
+ * - Automatic retry on 5xx / network errors (2 attempts) — IDEMPOTENT methods only
  */
 import axios, {
   type AxiosError,
@@ -67,13 +67,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Retry on 5xx or network error (max 2 retries with exponential backoff)
+// Retry on 5xx or network error (max 2 retries with exponential backoff).
+//
+// ONLY for idempotent methods (GET/HEAD/OPTIONS). Retrying a non-idempotent
+// request is dangerous: when the first attempt actually reached the server and
+// mutated state but the response was lost (timeout / dropped connection / a 5xx
+// raised after the write), a blind retry re-runs the side effect. For POST
+// /auth/register and /operators/register that manifests as the classic
+// "first attempt fails, second says email already exists" — the row was created
+// by the lost first request, and the retry hits the uniqueness check. For
+// /payments/initialize it would open a second Paystack transaction. We therefore
+// never auto-retry POST/PATCH/PUT/DELETE; callers surface the error and the user
+// (or a purpose-built poller like verifyPayment, which is a GET) decides.
+const IDEMPOTENT_METHODS = new Set(["get", "head", "options"]);
+
 api.interceptors.response.use(undefined, async (error: AxiosError) => {
   const config = error.config as RetryableRequestConfig | undefined;
   if (!config) return Promise.reject(error);
 
   const status = error.response?.status;
-  const isRetryable = !status || (status >= 500 && status < 600);
+  const method = (config.method ?? "get").toLowerCase();
+  const isRetryableStatus = !status || (status >= 500 && status < 600);
+  const isRetryable = IDEMPOTENT_METHODS.has(method) && isRetryableStatus;
 
   if (isRetryable) {
     config.__retryCount = config.__retryCount ?? 0;

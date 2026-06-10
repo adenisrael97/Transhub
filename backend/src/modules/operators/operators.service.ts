@@ -13,7 +13,7 @@
  */
 import { randomBytes } from "node:crypto";
 import argon2 from "argon2";
-import type { Operator } from "@prisma/client";
+import { Prisma, type Operator } from "@prisma/client";
 import { prisma } from "../../infra/db/client";
 import { ConflictError, NotFoundError } from "../../shared/errors";
 import { ARGON2_OPTIONS } from "../../shared/security";
@@ -38,7 +38,19 @@ export const operatorsService = {
     if (existing) {
       throw new ConflictError("An application with this email already exists");
     }
-    return operatorsRepository.create(input);
+    try {
+      return await operatorsRepository.create(input);
+    } catch (err) {
+      // Two near-simultaneous applications for the same email can both clear the
+      // pre-check above and race into create(); the `operators.email` @unique
+      // constraint lets only one win. Translate the loser's P2002 into the same
+      // clean domain conflict so the client gets a meaningful 409 message instead
+      // of the central handler's generic "Resource already exists".
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new ConflictError("An application with this email already exists");
+      }
+      throw err;
+    }
   },
 
   /** Fetch a single operator by id (used by trips to verify ownership/approval). */
