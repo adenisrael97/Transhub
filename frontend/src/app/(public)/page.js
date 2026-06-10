@@ -1,206 +1,232 @@
 import Link from "next/link";
-import { Ticket, Package, Bus, Search, Star, Lock, MapPin, Mail, Shield, Clock, ChevronRight, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
+import {
+  Ticket, Package, Bus, Star, ShieldCheck, Zap, Heart, Sparkles,
+  Search, MousePointerClick, CreditCard, MapPin, ArrowRight, ChevronRight,
+  CheckCircle2,
+} from "lucide-react";
 import SearchCard from "@/components/shared/SearchCard";
+import StatsSlider from "@/components/landing/StatsSlider";
+import RoutesCarousel from "@/components/landing/RoutesCarousel";
+import Testimonials from "@/components/landing/Testimonials";
 
 export const metadata = {
   title: "TransHub — Nigeria's #1 Interstate E-Ticketing Platform",
-  description: "Book bus & car seats, send goods via waybill, and charter vehicles across Nigeria. Fast, secure, and reliable interstate travel and logistics.",
+  description:
+    "Book bus & car seats, send goods via waybill, and charter vehicles across Nigeria. Fast, secure, and reliable interstate travel and logistics.",
 };
 
 const SERVICES = [
   {
-    icon: Ticket,
+    img: "/Services/bus ticket.jpg",
     label: "Book a Seat",
     desc: "Search and reserve interstate bus or car seats in seconds. Pick your seat, pay online, get your e-ticket instantly.",
     href: "/search",
     cta: "Book Now",
-    bg: "bg-blue-50", iconBg: "bg-[#2563EB]", ctaColor: "text-[#2563EB]", border: "border-blue-100",
+    accent: "text-[#1D4ED8]",
   },
   {
-    icon: Package,
+    img: "/Services/waybill.jpg",
     label: "Send Goods",
     desc: "Ship parcels anywhere across Nigeria with a unique waybill number. Track your package in real time, end to end.",
     href: "/send",
     cta: "Send Now",
-    bg: "bg-emerald-50", iconBg: "bg-[#16A34A]", ctaColor: "text-[#16A34A]", border: "border-emerald-100",
+    accent: "text-[#16A34A]",
   },
   {
-    icon: Bus,
+    img: "/Services/charter.jpg",
     label: "Charter a Vehicle",
     desc: "Need a full bus, SUV, or truck? Charter for group travel, corporate events, school trips, or bulk delivery.",
     href: "/charter",
     cta: "Get a Quote",
-    bg: "bg-amber-50", iconBg: "bg-[#D97706]", ctaColor: "text-[#D97706]", border: "border-amber-100",
+    accent: "text-[#D97706]",
+  },
+];
+
+const WHY = [
+  {
+    icon: ShieldCheck,
+    title: "Secure & Trusted",
+    desc: "Bank-grade Paystack payments, SMS OTP, and encrypted data on every single transaction.",
+    gradient: "from-[#1D4ED8] to-[#0A1B3D]",
+  },
+  {
+    icon: Zap,
+    title: "Lightning Fast",
+    desc: "Book a seat or send a parcel in under two minutes. Instant e-tickets by SMS and email.",
+    gradient: "from-[#0EA5E9] to-[#1D4ED8]",
+  },
+  {
+    icon: Heart,
+    title: "Safe Travels",
+    desc: "Verified operators, real-time live tracking, and 24/7 support so you always travel with peace of mind.",
+    gradient: "from-[#059669] to-[#047857]",
+  },
+  {
+    icon: Sparkles,
+    title: "Total Convenience",
+    desc: "One platform for seats, goods, and charters — across all 36 states. Book anytime, from anywhere.",
+    gradient: "from-[#EA580C] to-[#B45309]",
+  },
+];
+
+const PARTNERS = [
+  {
+    img: "/join/partner.jpg",
+    eyebrow: "For Businesses",
+    title: "Partner With Us",
+    desc: "List your services, reach thousands of travellers daily, and grow your business on Nigeria's fastest-growing transport platform.",
+    href: "/contact",
+    cta: "Partner With Us",
+  },
+  {
+    img: "/join/operator.jpg",
+    eyebrow: "For Fleet Owners",
+    title: "Become an Operator",
+    desc: "Put your buses and cars to work. Manage trips, sell seats online, and get paid instantly with the TransHub operator portal.",
+    href: "/register-operator",
+    cta: "Become an Operator",
   },
 ];
 
 const STEPS = [
-  { num: "01", title: "Search",  desc: "Enter your route and travel date to browse available trips instantly." },
-  { num: "02", title: "Select",  desc: "Choose your preferred vehicle and pick your exact seat from the seat map." },
-  { num: "03", title: "Pay",     desc: "Pay securely with card, bank transfer, or USSD via Paystack." },
-  { num: "04", title: "Travel",  desc: "Show your e-ticket at the park and enjoy your journey!" },
-];
-
-const TESTIMONIALS = [
-  { name: "Chukwuemeka O.", location: "Lagos → Abuja",       text: "TransHub made my trip seamless. I booked my seat at midnight and got my ticket instantly. The driver even called ahead!", avatar: "C", color: "bg-[#2563EB]" },
-  { name: "Fatima A.",       location: "Kano → Port Harcourt", text: "Sent goods to my sister in PH. The waybill tracking was spot on — I knew exactly where my package was at every step.", avatar: "F", color: "bg-[#16A34A]" },
-  { name: "Tunde B.",        location: "Corporate Charter",   text: "We chartered a 33-seater for our company retreat. TransHub handled everything professionally. Will use again!", avatar: "T", color: "bg-[#D97706]" },
-];
-
-const FEATURES = [
-  { icon: Lock,         title: "Secure Payments",      desc: "Powered by Paystack. All transactions encrypted and protected." },
-  { icon: MapPin,       title: "Live Tracking",        desc: "Track your bus or package on a live map in real time." },
-  { icon: Bus,          title: "All 36 States",        desc: "Covering every major interstate route across Nigeria." },
-  { icon: Ticket,       title: "Instant E-Ticket",     desc: "Get your ticket by SMS and email immediately after booking." },
-  { icon: Shield,       title: "OTP Security",         desc: "Every transaction protected by SMS OTP verification." },
-  { icon: Clock,        title: "24/7 Support",         desc: "Our team is always available to help, day or night." },
+  { icon: Search,             num: "01", title: "Search", desc: "Enter your route and travel date to browse available trips instantly." },
+  { icon: MousePointerClick,  num: "02", title: "Select", desc: "Choose your preferred vehicle and pick your exact seat from the seat map." },
+  { icon: CreditCard,         num: "03", title: "Pay",    desc: "Pay securely with card, bank transfer, or USSD via Paystack." },
+  { icon: MapPin,             num: "04", title: "Travel", desc: "Show your e-ticket at the park and enjoy your journey!" },
 ];
 
 const TRUST_BADGES = ["Secure Paystack Payments", "Instant E-Ticket", "Real-Time Tracking", "24/7 Support"];
 
 export default function LandingPage() {
   return (
-    <div className="bg-white text-[#0F172A]">
+    <div className="bg-white text-[#0A1B3D]">
 
-      {/* HERO */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#1E40AF] via-[#2563EB] to-[#1D4ED8] text-white">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-          <div className="flex justify-center mb-6">
-            <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium">
-              <span className="w-2 h-2 bg-[#F59E0B] rounded-full animate-pulse" />
+      {/* ===================== HERO ===================== */}
+      <section className="relative overflow-hidden bg-[#0A1B3D]">
+        {/* Background bus photo. Kept clearly visible under a cinematic deep-blue /
+            navy gradient (darker at the edges, lighter in the middle) so the bus
+            reads through while white headline text stays legible. */}
+        <Image
+          src="/Bus/40602834137803287.jpeg"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        {/* Diagonal navy → deep-blue wash for depth */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0A1B3D]/90 via-[#0A1B3D]/55 to-[#1D4ED8]/75" />
+        {/* Vertical scrim: anchors the headline/search-card area for contrast */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0A1B3D]/70 via-transparent to-[#0A1B3D]/85" />
+
+        <div className="relative mx-auto max-w-6xl px-4 pt-20 pb-20 sm:px-6 lg:px-8 lg:pt-28 lg:pb-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm font-medium text-white backdrop-blur">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-[#FBBF24]" />
               Nigeria&apos;s #1 Interstate Transport Platform
             </span>
+            <h1 className="mb-5 text-5xl font-extrabold leading-[1.05] tracking-tight text-white drop-shadow-sm sm:text-6xl md:text-7xl">
+              Move Smarter.
+              <br />
+              <span className="text-[#FBBF24]">Anywhere in Nigeria.</span>
+            </h1>
+            <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-blue-100 md:text-xl">
+              Book bus and car seats, ship goods, or charter a vehicle — all on one
+              platform, in minutes.
+            </p>
           </div>
-          <h1 className="text-center text-5xl sm:text-6xl md:text-7xl font-extrabold leading-[1.08] tracking-tight mb-5">
-            Move Smarter.<br />
-            <span className="text-[#FCD34D]">Anywhere in Nigeria.</span>
-          </h1>
-          <p className="text-center text-blue-100 text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-            Book bus and car seats, ship goods, or charter a vehicle — all on one platform, in minutes.
-          </p>
+
           <SearchCard />
-          <div className="flex flex-wrap justify-center gap-5 mt-8 text-sm text-blue-200">
+
+          <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm text-blue-100">
             {TRUST_BADGES.map((b) => (
               <span key={b} className="flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-[#4ADE80]" /> {b}
+                <CheckCircle2 size={15} className="text-[#4ADE80]" /> {b}
               </span>
             ))}
           </div>
         </div>
       </section>
 
-      {/* STATS */}
-      <section className="border-y border-[#E2E8F0] bg-white py-8 px-4">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 divide-x divide-[#E2E8F0]">
-          {[
-            { value: "50,000+", label: "Happy Travellers" },
-            { value: "120+",    label: "Routes Covered"   },
-            { value: "500+",    label: "Vehicles Available" },
-            { value: "36",      label: "States Covered"   },
-          ].map((s) => (
-            <div key={s.label} className="text-center px-4 py-2">
-              <p className="text-3xl font-extrabold text-[#2563EB]">{s.value}</p>
-              <p className="text-sm text-[#94A3B8] mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* ===================== STATS (auto-sliding cards) ===================== */}
+      <StatsSlider />
 
-      {/* SERVICES */}
-      <section className="py-24 px-4 bg-[#F8FAFC]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <span className="inline-block bg-blue-100 text-[#2563EB] text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3">What We Offer</span>
-            <h2 className="text-4xl md:text-5xl font-extrabold">Everything transport,<br />one platform.</h2>
+      {/* ===================== SERVICES ===================== */}
+      <section className="bg-[#F8FAFC] py-24 px-4">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-14 text-center">
+            <span className="mb-3 inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#1D4ED8]">
+              What We Offer
+            </span>
+            <h2 className="text-4xl font-extrabold md:text-5xl">
+              Everything transport,
+              <br />
+              one platform.
+            </h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {SERVICES.map((s) => {
-              const Icon = s.icon;
-              return (
-                <div key={s.label} className={`group bg-white rounded-3xl border ${s.border} p-8 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300`}>
-                  <div className={`w-14 h-14 ${s.iconBg} rounded-2xl flex items-center justify-center mb-6`}>
-                    <Icon size={26} className="text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold mb-3">{s.label}</h3>
-                  <p className="text-[#94A3B8] text-sm leading-relaxed mb-6">{s.desc}</p>
-                  <Link href={s.href} className={`inline-flex items-center gap-2 text-sm font-bold ${s.ctaColor} group-hover:gap-3 transition-all`}>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            {SERVICES.map((s) => (
+              <div
+                key={s.label}
+                className="group overflow-hidden rounded-3xl border border-[#E2E8F0] bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+              >
+                <div className="relative h-52 w-full overflow-hidden">
+                  <Image
+                    src={s.img}
+                    alt={s.label}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-7">
+                  <h3 className="mb-3 text-xl font-bold">{s.label}</h3>
+                  <p className="mb-6 text-sm leading-relaxed text-[#64748B]">{s.desc}</p>
+                  <Link
+                    href={s.href}
+                    className={`inline-flex items-center gap-2 text-sm font-bold ${s.accent} transition-all group-hover:gap-3`}
+                  >
                     {s.cta} <ChevronRight size={16} />
                   </Link>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section className="py-24 px-4 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <span className="inline-block bg-blue-100 text-[#2563EB] text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3">Simple Process</span>
-            <h2 className="text-4xl md:text-5xl font-extrabold">Book in 4 easy steps</h2>
-          </div>
-          <div className="relative grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="hidden md:block absolute top-8 left-[12%] right-[12%] h-0.5 bg-gradient-to-r from-[#2563EB] via-[#2563EB] to-[#16A34A]" />
-            {STEPS.map((step, i) => (
-              <div key={step.num} className="text-center relative">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-extrabold mx-auto mb-5 shadow-lg ${i === 3 ? "bg-[#16A34A] text-white" : "bg-[#2563EB] text-white"}`}>
-                  {step.num}
-                </div>
-                <h4 className="font-bold text-lg mb-2">{step.title}</h4>
-                <p className="text-[#94A3B8] text-sm leading-relaxed">{step.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* TRACK BANNER */}
-      <section className="py-16 px-4 bg-[#F8FAFC]">
-        <div className="max-w-3xl mx-auto">
-          <div className="relative overflow-hidden bg-gradient-to-br from-[#0F172A] to-[#1E293B] rounded-3xl p-8 md:p-12 text-white">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-[#2563EB]/20 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-            <div className="relative text-center">
-              <span className="inline-flex items-center gap-1.5 bg-[#2563EB]/20 text-blue-300 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
-                <Search size={11} /> Live Tracking
-              </span>
-              <h2 className="text-3xl md:text-4xl font-extrabold mb-3">Track your package</h2>
-              <p className="text-[#94A3B8] mb-8">Enter your waybill number to see real-time updates on your shipment.</p>
-              <div className="flex flex-col sm:flex-row gap-2 max-w-lg mx-auto">
-                <input
-                  type="text"
-                  placeholder="e.g. TH-2024-00123"
-                  className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-[#475569] text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-                />
-                <Link href="/track" className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-8 py-3 rounded-xl text-sm font-bold transition-colors whitespace-nowrap">
-                  Track Now
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ===================== POPULAR ROUTES (carousel) ===================== */}
+      <RoutesCarousel />
 
-      {/* WHY TRANSHUB */}
-      <section className="py-24 px-4 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <span className="inline-block bg-blue-100 text-[#2563EB] text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3">Why Choose Us</span>
-            <h2 className="text-4xl md:text-5xl font-extrabold">Built for Nigeria.<br />Trusted by thousands.</h2>
+      {/* ===================== WHY CHOOSE US (gradient cards) ===================== */}
+      <section className="bg-[#F8FAFC] py-24 px-4">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-14 text-center">
+            <span className="mb-3 inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#1D4ED8]">
+              Why Choose Us
+            </span>
+            <h2 className="text-4xl font-extrabold md:text-5xl">
+              Built for Nigeria.
+              <br />
+              Trusted by thousands.
+            </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {FEATURES.map((f) => {
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {WHY.map((f) => {
               const Icon = f.icon;
               return (
-                <div key={f.title} className="flex items-start gap-4 p-6 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#BFDBFE] hover:shadow-md transition-all">
-                  <div className="w-10 h-10 bg-[#EFF6FF] rounded-xl flex items-center justify-center shrink-0">
-                    <Icon size={18} className="text-[#2563EB]" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold mb-1">{f.title}</h4>
-                    <p className="text-[#94A3B8] text-sm leading-relaxed">{f.desc}</p>
+                <div
+                  key={f.title}
+                  className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${f.gradient} p-7 text-white shadow-lg transition-transform duration-300 hover:-translate-y-1.5`}
+                >
+                  <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10" />
+                  <div className="relative">
+                    <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+                      <Icon size={24} className="text-white" />
+                    </div>
+                    <h3 className="mb-2 text-lg font-bold">{f.title}</h3>
+                    <p className="text-sm leading-relaxed text-white/85">{f.desc}</p>
                   </div>
                 </div>
               );
@@ -209,30 +235,43 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section className="py-24 px-4 bg-[#F8FAFC]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <span className="inline-block bg-blue-100 text-[#2563EB] text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3">Testimonials</span>
-            <h2 className="text-4xl md:text-5xl font-extrabold">What our users say</h2>
+      {/* ===================== PARTNER ===================== */}
+      <section className="bg-white py-24 px-4">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-14 text-center">
+            <span className="mb-3 inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#1D4ED8]">
+              Grow With Us
+            </span>
+            <h2 className="text-4xl font-extrabold md:text-5xl">Join the TransHub network</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="bg-white rounded-3xl p-8 shadow-sm border border-[#E2E8F0] hover:shadow-xl transition-shadow">
-                <div className="flex gap-0.5 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={14} className="text-[#F59E0B] fill-[#F59E0B]" />
-                  ))}
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            {PARTNERS.map((p) => (
+              <div
+                key={p.title}
+                className="group relative overflow-hidden rounded-3xl shadow-lg"
+              >
+                <div className="relative h-80 w-full">
+                  <Image
+                    src={p.img}
+                    alt={p.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A1B3D] via-[#0A1B3D]/70 to-[#0A1B3D]/20" />
                 </div>
-                <p className="text-[#475569] text-sm leading-relaxed mb-6 italic">&ldquo;{t.text}&rdquo;</p>
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 ${t.color} text-white rounded-full flex items-center justify-center font-bold text-sm`}>
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <p className="font-bold text-sm">{t.name}</p>
-                    <p className="text-xs text-[#94A3B8]">{t.location}</p>
-                  </div>
+                <div className="absolute inset-x-0 bottom-0 p-8 text-white">
+                  <span className="text-xs font-bold uppercase tracking-widest text-blue-200">
+                    {p.eyebrow}
+                  </span>
+                  <h3 className="mb-2 mt-2 text-2xl font-bold">{p.title}</h3>
+                  <p className="mb-6 max-w-sm text-sm leading-relaxed text-white/85">{p.desc}</p>
+                  <Link
+                    href={p.href}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-bold text-[#0A1B3D] transition-transform hover:scale-[1.03]"
+                  >
+                    {p.cta} <ArrowRight size={16} />
+                  </Link>
                 </div>
               </div>
             ))}
@@ -240,26 +279,70 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-24 px-4 bg-gradient-to-br from-[#1D4ED8] via-[#2563EB] to-[#1E40AF] text-white relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-80 h-80 bg-white/5 rounded-full -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-80 h-80 bg-white/5 rounded-full translate-x-1/2 translate-y-1/2" />
+      {/* ===================== HOW TO BOOK ===================== */}
+      <section className="bg-[#F8FAFC] py-24 px-4">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-14 text-center">
+            <span className="mb-3 inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#1D4ED8]">
+              Simple Process
+            </span>
+            <h2 className="text-4xl font-extrabold md:text-5xl">Book in 4 easy steps</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map((step) => {
+              const Icon = step.icon;
+              return (
+                <div
+                  key={step.num}
+                  className="relative rounded-3xl border border-[#E2E8F0] bg-white p-7 transition-shadow hover:shadow-lg"
+                >
+                  <span className="absolute right-6 top-5 text-4xl font-extrabold text-[#EFF2F7]">
+                    {step.num}
+                  </span>
+                  <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1D4ED8] text-white shadow-lg shadow-blue-500/25">
+                    <Icon size={24} />
+                  </div>
+                  <h3 className="mb-2 text-lg font-bold">{step.title}</h3>
+                  <p className="text-sm leading-relaxed text-[#64748B]">{step.desc}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="relative max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-extrabold mb-5 leading-tight">Ready to travel smarter?</h2>
-          <p className="text-blue-100 text-lg mb-10 leading-relaxed">
-            Join 50,000+ Nigerians already using TransHub to book seats, send goods, and charter vehicles.
+      </section>
+
+      {/* ===================== TESTIMONIALS (carousel) ===================== */}
+      <Testimonials />
+
+      {/* ===================== CLOSING CTA ===================== */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#1D4ED8] via-[#1E40AF] to-[#0A1B3D] px-4 py-24 text-white">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-white/5" />
+          <div className="absolute -bottom-20 -right-20 h-80 w-80 rounded-full bg-white/5" />
+        </div>
+        <div className="relative mx-auto max-w-3xl text-center">
+          <h2 className="mb-5 text-4xl font-extrabold leading-tight md:text-5xl">
+            Ready to travel smarter?
+          </h2>
+          <p className="mb-10 text-lg leading-relaxed text-blue-100">
+            Join 50,000+ Nigerians already using TransHub to book seats, send goods,
+            and charter vehicles.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/register" className="bg-white text-[#2563EB] px-10 py-4 rounded-2xl font-bold hover:bg-blue-50 transition-colors text-base shadow-xl">
+          <div className="flex flex-col justify-center gap-4 sm:flex-row">
+            <Link
+              href="/auth/register"
+              className="rounded-2xl bg-white px-10 py-4 text-base font-bold text-[#1D4ED8] shadow-xl transition-colors hover:bg-blue-50"
+            >
               Create Free Account
             </Link>
-            <Link href="/search" className="border-2 border-white/60 text-white px-10 py-4 rounded-2xl font-bold hover:bg-white/10 transition-colors text-base flex items-center gap-2 justify-center">
+            <Link
+              href="/search"
+              className="flex items-center justify-center gap-2 rounded-2xl border-2 border-white/60 px-10 py-4 text-base font-bold text-white transition-colors hover:bg-white/10"
+            >
               Search Trips <ChevronRight size={18} />
             </Link>
           </div>
-          <p className="text-blue-200 text-sm mt-6">No credit card required. Free to sign up.</p>
+          <p className="mt-6 text-sm text-blue-200">No credit card required. Free to sign up.</p>
         </div>
       </section>
     </div>

@@ -118,7 +118,7 @@ export default function OperatorFleetPage() {
           {[
             { label: "Total Vehicles", value: total,     Icon: Bus,         bg: "bg-blue-50",   color: "text-blue-600"   },
             { label: "Active",         value: total,     Icon: CheckCircle2, bg: "bg-green-50", color: "text-green-600"  },
-            { label: "Capacity (page)", value: pageSeats, Icon: Users2,      bg: "bg-purple-50", color: "text-purple-600" },
+            { label: "Capacity (page)", value: pageSeats, Icon: Users2,      bg: "bg-blue-50", color: "text-[#0A1B3D]" },
           ].map(({ Icon, label, value, bg, color }) => (
             <StatCard key={label} icon={<Icon size={22} />} label={label} value={value} bg={bg} color={color} />
           ))}

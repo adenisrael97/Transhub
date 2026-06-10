@@ -197,6 +197,25 @@
   }
 }
 
+/* Landing-page marquee (stats strip). Track is duplicated in markup, so a
+   -50% translate produces a seamless loop. Honours reduced-motion + pause-on-hover. */
+@keyframes th-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.th-marquee-track {
+  animation: th-marquee 38s linear infinite;
+  will-change: transform;
+}
+.th-marquee-paused:hover .th-marquee-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .th-marquee-track { animation: none; }
+}
+
+/* Hide scrollbar on horizontal scroll-snap carousels (visual only). */
+.th-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.th-no-scrollbar::-webkit-scrollbar { display: none; }
+
 /* Print: strip chrome so only the ticket card prints cleanly. */
 @media print {
   nav,

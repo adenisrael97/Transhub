@@ -83,8 +83,8 @@ export default function AnalyticsPage() {
     ? [
         { label: "Total Revenue",    value: fmtRevenue(summary.totalRevenue),              Icon: DollarSign, bg: "bg-green-50",  color: "text-green-600"  },
         { label: "Total Bookings",   value: summary.totalBookings.toLocaleString(),         Icon: Ticket,     bg: "bg-blue-50",   color: "text-blue-600"   },
-        { label: "Total Passengers", value: summary.totalPassengers.toLocaleString(),       Icon: Users,      bg: "bg-teal-50",   color: "text-teal-600"   },
-        { label: "Active Trips",     value: summary.activeTrips.toLocaleString(),           Icon: Bus,        bg: "bg-purple-50", color: "text-purple-600" },
+        { label: "Total Passengers", value: summary.totalPassengers.toLocaleString(),       Icon: Users,      bg: "bg-green-50",   color: "text-green-600"   },
+        { label: "Active Trips",     value: summary.activeTrips.toLocaleString(),           Icon: Bus,        bg: "bg-blue-50", color: "text-[#0A1B3D]" },
       ]
     : [];
 

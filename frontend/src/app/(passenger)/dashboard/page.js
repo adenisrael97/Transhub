@@ -50,7 +50,7 @@ function PassengerDashboard({ user }) {
     { label: "Total Trips", value: String(tickets.length),           icon: Bus,          bg: "bg-blue-50",   color: "text-[#2563EB]" },
     { label: "Upcoming",    value: String(upcoming),                 icon: Clock,        bg: "bg-amber-50",  color: "text-[#D97706]" },
     { label: "Completed",   value: String(completed),                icon: CheckCircle2, bg: "bg-green-50",  color: "text-[#16A34A]" },
-    { label: "Total Spent", value: `₦${totalSpent.toLocaleString()}`, icon: DollarSign,  bg: "bg-purple-50", color: "text-purple-600" },
+    { label: "Total Spent", value: `₦${totalSpent.toLocaleString()}`, icon: DollarSign,  bg: "bg-blue-50", color: "text-[#0A1B3D]" },
   ];
 
   const recent = tickets.slice(0, 3);

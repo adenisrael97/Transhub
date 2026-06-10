@@ -55,7 +55,7 @@ export default function Footer() {
   if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
 
   return (
-    <footer className="bg-[#0F172A] text-white">
+    <footer className="bg-[#0A1B3D] text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 mb-12">
           {/* Brand col */}

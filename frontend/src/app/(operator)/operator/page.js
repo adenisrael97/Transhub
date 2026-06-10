@@ -66,7 +66,7 @@ export default function OperatorDashboardPage() {
       label: "Bookings (30d)",
       value: String(stats?.totalBookings ?? 0),
       Icon: Ticket,
-      bg: "bg-purple-50",  color: "text-purple-600",
+      bg: "bg-blue-50",  color: "text-[#0A1B3D]",
     },
     {
       label: "Fleet Vehicles",
@@ -78,7 +78,7 @@ export default function OperatorDashboardPage() {
       label: "Avg Occupancy",
       value: "—",
       Icon: TrendingUp,
-      bg: "bg-teal-50",    color: "text-teal-600",
+      bg: "bg-green-50",    color: "text-green-600",
     },
     {
       label: "Rating",

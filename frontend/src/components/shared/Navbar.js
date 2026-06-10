@@ -56,7 +56,7 @@ export default function Navbar() {
   const displayName = user?.fullName ?? user?.email ?? 'Account';
 
   return (
-    <nav className={`bg-white sticky top-0 z-50 transition-shadow duration-200 ${scrolled ? 'shadow-md' : 'border-b border-[#E2E8F0]'}`}>
+    <nav className={`bg-[#0A1B3D] sticky top-0 z-50 transition-shadow duration-200 ${scrolled ? 'shadow-lg shadow-black/20' : 'border-b border-white/10'}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
 
@@ -65,7 +65,7 @@ export default function Navbar() {
             <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center">
               <Bus size={16} className="text-white" />
             </div>
-            <span className="font-bold text-xl text-[#0F172A] tracking-tight">TransHub</span>
+            <span className="font-bold text-xl text-white tracking-tight">TransHub</span>
           </Link>
 
           {/* Desktop nav links */}
@@ -78,8 +78,8 @@ export default function Navbar() {
                   href={href}
                   className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
                     active
-                      ? 'text-[#2563EB] bg-[#EFF6FF]'
-                      : 'text-[#475569] hover:text-[#2563EB] hover:bg-[#F8FAFC]'
+                      ? 'text-white bg-white/10'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {label}
@@ -91,13 +91,13 @@ export default function Navbar() {
           {/* Desktop auth */}
           <div className="hidden md:flex items-center gap-2">
             {!hasHydrated ? (
-              <div className="w-24 h-9 rounded-xl bg-[#F1F5F9] animate-pulse" aria-hidden="true" />
+              <div className="w-24 h-9 rounded-xl bg-white/10 animate-pulse" aria-hidden="true" />
             ) : isAuthenticated ? (
               <>
                 {user?.role === 'admin' && (
                   <Link
                     href="/admin"
-                    className="flex items-center gap-1.5 text-sm font-semibold text-[#475569] border border-[#E2E8F0] px-3.5 py-2 rounded-xl hover:bg-[#F8FAFC] transition-colors"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-slate-200 border border-white/15 px-3.5 py-2 rounded-xl hover:bg-white/10 transition-colors"
                   >
                     <LayoutDashboard size={14} /> Admin
                   </Link>
@@ -105,7 +105,7 @@ export default function Navbar() {
                 {user?.role === 'operator' && (
                   <Link
                     href="/operator"
-                    className="flex items-center gap-1.5 text-sm font-semibold text-[#475569] border border-[#E2E8F0] px-3.5 py-2 rounded-xl hover:bg-[#F8FAFC] transition-colors"
+                    className="flex items-center gap-1.5 text-sm font-semibold text-slate-200 border border-white/15 px-3.5 py-2 rounded-xl hover:bg-white/10 transition-colors"
                   >
                     <Bus size={14} /> Operator
                   </Link>
@@ -116,13 +116,13 @@ export default function Navbar() {
                     onClick={() => setUserMenu((v) => !v)}
                     aria-haspopup="menu"
                     aria-expanded={userMenuOpen}
-                    className="flex items-center gap-2 text-sm font-semibold text-[#0F172A] border border-[#E2E8F0] px-3.5 py-2 rounded-xl hover:bg-[#F8FAFC] transition-colors"
+                    className="flex items-center gap-2 text-sm font-semibold text-white border border-white/15 px-3.5 py-2 rounded-xl hover:bg-white/10 transition-colors"
                   >
-                    <div className="w-6 h-6 rounded-full bg-[#EFF6FF] flex items-center justify-center">
-                      <User size={12} className="text-[#2563EB]" />
+                    <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                      <User size={12} className="text-blue-200" />
                     </div>
                     {displayName}
-                    <ChevronDown size={14} className={`text-[#94A3B8] transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={14} className={`text-slate-300 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {/* CSS-animated dropdown (replaces framer-motion). Kept mounted so
                       enter + exit both transition; hidden from a11y/pointer when closed. */}
@@ -174,19 +174,19 @@ export default function Navbar() {
               <>
                 <Link
                   href="/operator/login"
-                  className="text-sm font-semibold text-[#475569] border border-[#E2E8F0] px-3.5 py-2 rounded-xl hover:bg-[#F8FAFC] transition-colors"
+                  className="text-sm font-semibold text-slate-200 border border-white/15 px-3.5 py-2 rounded-xl hover:bg-white/10 transition-colors"
                 >
                   Operator Portal
                 </Link>
                 <Link
                   href="/auth/login"
-                  className="text-sm font-semibold text-[#2563EB] border border-[#2563EB] px-3.5 py-2 rounded-xl hover:bg-[#EFF6FF] transition-colors"
+                  className="text-sm font-semibold text-white border border-white/30 px-3.5 py-2 rounded-xl hover:bg-white/10 transition-colors"
                 >
                   Log In
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="text-sm font-semibold text-white bg-[#2563EB] px-3.5 py-2 rounded-xl hover:bg-[#1D4ED8] transition-colors"
+                  className="text-sm font-semibold text-white bg-[#2563EB] px-3.5 py-2 rounded-xl hover:bg-[#1D4ED8] transition-colors shadow-sm"
                 >
                   Sign Up
                 </Link>
@@ -197,7 +197,7 @@ export default function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="md:hidden p-2 rounded-lg text-[#475569] hover:bg-[#F8FAFC] transition-colors"
+            className="md:hidden p-2 rounded-lg text-slate-200 hover:bg-white/10 transition-colors"
             aria-label="Toggle menu"
             aria-expanded={menuOpen}
           >
@@ -212,12 +212,12 @@ export default function Navbar() {
       <div
         inert={!menuOpen ? true : undefined}
         className={`md:hidden grid transition-all duration-200 ${
-          menuOpen ? 'grid-rows-[1fr] opacity-100 border-t border-[#E2E8F0]' : 'grid-rows-[0fr] opacity-0'
+          menuOpen ? 'grid-rows-[1fr] opacity-100 border-t border-white/10' : 'grid-rows-[0fr] opacity-0'
         }`}
       >
         <div className="overflow-hidden">
             <div
-              className="bg-white px-4 py-3 flex flex-col gap-1"
+              className="bg-[#0A1B3D] px-4 py-3 flex flex-col gap-1"
               onClick={() => setMenuOpen(false)}
             >
               {NAV_LINKS.map(({ href, label }) => {
@@ -227,7 +227,7 @@ export default function Navbar() {
                     key={href}
                     href={href}
                     className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-colors ${
-                      active ? 'text-[#2563EB] bg-[#EFF6FF]' : 'text-[#475569] hover:bg-[#F8FAFC]'
+                      active ? 'text-white bg-white/10' : 'text-slate-300 hover:bg-white/10'
                     }`}
                   >
                     {label}
@@ -235,48 +235,48 @@ export default function Navbar() {
                 );
               })}
 
-              <div className="mt-2 pt-3 border-t border-[#F1F5F9] flex flex-col gap-2">
+              <div className="mt-2 pt-3 border-t border-white/10 flex flex-col gap-2">
                 {!hasHydrated ? (
-                  <div className="h-10 rounded-xl bg-[#F1F5F9] animate-pulse" aria-hidden="true" />
+                  <div className="h-10 rounded-xl bg-white/10 animate-pulse" aria-hidden="true" />
                 ) : isAuthenticated ? (
                   <>
                     {user?.role === 'admin' && (
-                      <Link href="/admin" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                      <Link href="/admin" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-200 border border-white/15 hover:bg-white/10">
                         <LayoutDashboard size={14} /> Admin Dashboard
                       </Link>
                     )}
                     {user?.role === 'operator' && (
-                      <Link href="/operator" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                      <Link href="/operator" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-200 border border-white/15 hover:bg-white/10">
                         <Bus size={14} /> Operator Dashboard
                       </Link>
                     )}
                     {user?.role === 'passenger' && (
                       <>
-                        <Link href="/dashboard" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                        <Link href="/dashboard" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-200 border border-white/15 hover:bg-white/10">
                           <LayoutDashboard size={14} /> Dashboard
                         </Link>
-                        <Link href="/tickets" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                        <Link href="/tickets" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-200 border border-white/15 hover:bg-white/10">
                           <Ticket size={14} /> My Tickets
                         </Link>
-                        <Link href="/settings" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                        <Link href="/settings" className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-200 border border-white/15 hover:bg-white/10">
                           <Settings size={14} /> Settings
                         </Link>
                       </>
                     )}
-                    <p className="text-sm text-[#475569] font-medium px-3 py-1">{displayName}</p>
+                    <p className="text-sm text-slate-300 font-medium px-3 py-1">{displayName}</p>
                     <button
                       onClick={() => { logout(); setMenuOpen(false); }}
-                      className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-[#DC2626] border border-red-200 hover:bg-red-50"
+                      className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold text-red-300 border border-red-400/30 hover:bg-red-500/10"
                     >
                       <LogOut size={14} /> Log Out
                     </button>
                   </>
                 ) : (
                   <>
-                    <Link href="/operator/login" className="py-2.5 px-3 rounded-xl text-sm font-semibold text-center text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]">
+                    <Link href="/operator/login" className="py-2.5 px-3 rounded-xl text-sm font-semibold text-center text-slate-200 border border-white/15 hover:bg-white/10">
                       Operator Portal
                     </Link>
-                    <Link href="/auth/login" className="py-2.5 px-3 rounded-xl text-sm font-semibold text-center text-[#2563EB] border border-[#2563EB] hover:bg-[#EFF6FF]">
+                    <Link href="/auth/login" className="py-2.5 px-3 rounded-xl text-sm font-semibold text-center text-white border border-white/30 hover:bg-white/10">
                       Log In
                     </Link>
                     <Link href="/auth/register" className="py-2.5 px-3 rounded-xl text-sm font-semibold text-center text-white bg-[#2563EB] hover:bg-[#1D4ED8]">

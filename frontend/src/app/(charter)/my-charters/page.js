@@ -284,8 +284,8 @@ function CharterCard({ charter, onRefresh }) {
       {charter.status === "completed" && (
         <div className="border-t border-[#F1F5F9] px-5 py-4">
           <div className="flex items-center gap-2 mb-2">
-            <CheckCircle size={15} className="text-purple-600" />
-            <p className="text-sm font-semibold text-purple-700">Trip Completed</p>
+            <CheckCircle size={15} className="text-[#0A1B3D]" />
+            <p className="text-sm font-semibold text-[#0A1B3D]">Trip Completed</p>
           </div>
           <p className="text-xs text-[#64748B]">
             This charter journey has been completed. Thank you for choosing TransHub!
