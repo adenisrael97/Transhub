@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import ToastContainer from "@/components/shared/ToastContainer";
+import PWABanners from "@/components/shared/PWABanners";
 import Script from "next/script";
 
 const geistSans = Geist({
@@ -77,6 +78,7 @@ export default function RootLayout({ children }) {
         <main className="flex-1 flex flex-col">{children}</main>
         <Footer />
         <ToastContainer />
+        <PWABanners />
         {process.env.NODE_ENV === "production" ? (
           <Script
             id="register-sw"

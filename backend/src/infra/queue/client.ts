@@ -77,6 +77,14 @@ export const seatSweepQueue = new Queue("seat-sweep", {
   defaultJobOptions: { removeOnComplete: true, removeOnFail: 50 },
 });
 
+// Attach an 'error' listener to every queue. Without one, a Redis connection
+// error (e.g. WRONGPASS on a rotated credential, or a managed-Redis socket reset)
+// surfaces as an UNHANDLED promise rejection — Sentry noise plus a crash risk.
+// Logged and swallowed: BullMQ self-heals via the connection's retryStrategy.
+notificationsQueue.on("error", (err) => logger.warn({ err: err.message, queue: "notifications" }, "BullMQ queue Redis error (will retry)"));
+holdExpiryQueue.on("error",    (err) => logger.warn({ err: err.message, queue: "hold-expiry" },    "BullMQ queue Redis error (will retry)"));
+seatSweepQueue.on("error",     (err) => logger.warn({ err: err.message, queue: "seat-sweep" },     "BullMQ queue Redis error (will retry)"));
+
 // ---------------------------------------------------------------------------
 // Worker — started only in the main server process
 // ---------------------------------------------------------------------------
@@ -95,6 +103,11 @@ export function startHoldExpiryWorker(
   );
   holdExpiryWorker.on("failed", (job, err) =>
     logger.error({ jobId: job?.id, err }, "hold-expiry job failed")
+  );
+  // Worker-level connection/Redis errors (mirrors the seat-sweep worker) — log so
+  // they don't become unhandled rejections; BullMQ reconnects via retryStrategy.
+  holdExpiryWorker.on("error", (err) =>
+    logger.error({ err }, "hold-expiry worker error")
   );
   logger.info("✅ hold-expiry worker started");
 }

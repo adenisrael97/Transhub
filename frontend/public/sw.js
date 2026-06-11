@@ -15,7 +15,7 @@
 //   PAGE  everything else     → NetworkFirst → offline fallback (NOT cached)
 //   API   trips/bookings/payments + any non-GET → NetworkOnly (pass through)
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 const STATIC_CACHE = `transhub-static-${VERSION}`;
 const PAGE_TICKET_LIST = 'tickets-list';
 const PAGE_TICKET_DETAIL = 'tickets-detail';
@@ -124,7 +124,16 @@ self.addEventListener('install', (event) => {
       )
     )
   );
-  self.skipWaiting();
+  // Do NOT call skipWaiting() here. The PWABanners component shows an
+  // "Update available" banner and posts { type: 'SKIP_WAITING' } when the
+  // user confirms — giving them a chance to finish what they're doing first.
+});
+
+// User-triggered activation: PWABanners posts this message after the user
+// clicks "Update Now". We then call skipWaiting() so the new SW activates,
+// clients.claim() fires, and the page reloads via the controllerchange handler.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {

@@ -105,7 +105,15 @@ export const inventoryService = {
       pipeline.del(`seat_hold:${tripId}:${seatId}`);
     }
     pipeline.del(`user_hold:${userId}`);
-    await pipeline.exec();
+    await pipeline.exec().catch((err) => {
+      // Best-effort: the DB release above is authoritative and the keys carry a
+      // TTL, so they self-expire even if this cleanup can't reach Redis. (Matches
+      // releaseHoldKeys below — never let a Redis blip fail the expiry job.)
+      logger.warn(
+        { err, userId, tripId, seatCount: seatIds.length },
+        "Failed to clear Redis hold keys on expiry (keys self-expire via TTL)"
+      );
+    });
   },
 
   /**
