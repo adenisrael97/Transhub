@@ -94,7 +94,7 @@ export default function BookingSuccessPage() {
             <CheckCircle2 size={40} className="text-[#16A34A]" />
           </div>
           <h1 className="text-2xl font-bold text-[#0F172A] mb-1">Booking Confirmed!</h1>
-          <p className="text-sm text-[#94A3B8] text-center">
+          <p className="text-sm text-[#64748B] text-center">
             Your trip has been booked successfully. Check your email for confirmation.
           </p>
         </motion.div>
@@ -119,7 +119,7 @@ export default function BookingSuccessPage() {
 
           {/* Ticket body */}
           {loadingBooking ? (
-            <div className="px-6 py-10 flex flex-col items-center gap-3 text-sm text-[#94A3B8]">
+            <div className="px-6 py-10 flex flex-col items-center gap-3 text-sm text-[#64748B]">
               <Loader2 size={22} className="text-[#2563EB] animate-spin" />
               Loading booking details…
             </div>
@@ -130,7 +130,7 @@ export default function BookingSuccessPage() {
                 <div className="text-center">
                   <p className="text-lg font-bold text-[#0F172A]">{view.from}</p>
                   {view.departureTime && (
-                    <p className="text-xs text-[#94A3B8]">{formatTime(view.departureTime)}</p>
+                    <p className="text-xs text-[#64748B]">{formatTime(view.departureTime)}</p>
                   )}
                 </div>
                 <div className="flex-1 flex items-center gap-1.5">
@@ -140,27 +140,27 @@ export default function BookingSuccessPage() {
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-bold text-[#0F172A]">{view.to}</p>
-                  <p className="text-xs text-[#94A3B8]">{view.operator}</p>
+                  <p className="text-xs text-[#64748B]">{view.operator}</p>
                 </div>
               </div>
 
               <div className="border-t border-dashed border-[#E2E8F0] pt-4 space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="flex items-center gap-1.5 text-[#94A3B8]"><MapPin size={13} /> Seats</span>
+                  <span className="flex items-center gap-1.5 text-[#64748B]"><MapPin size={13} /> Seats</span>
                   <span className="font-semibold text-[#0F172A]">{view.seats} (open seating)</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="flex items-center gap-1.5 text-[#94A3B8]"><Users size={13} /> Passengers</span>
+                  <span className="flex items-center gap-1.5 text-[#64748B]"><Users size={13} /> Passengers</span>
                   <span className="font-semibold text-[#0F172A]">{view.passengers}</span>
                 </div>
                 {view.txRef && (
                   <div className="flex justify-between">
-                    <span className="flex items-center gap-1.5 text-[#94A3B8]"><Hash size={13} /> Transaction Ref</span>
+                    <span className="flex items-center gap-1.5 text-[#64748B]"><Hash size={13} /> Transaction Ref</span>
                     <span className="font-mono text-xs text-[#475569] truncate max-w-44">{view.txRef}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="flex items-center gap-1.5 text-[#94A3B8]"><CheckCircle2 size={13} /> Status</span>
+                  <span className="flex items-center gap-1.5 text-[#64748B]"><CheckCircle2 size={13} /> Status</span>
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#DCFCE7] text-[#15803D] capitalize">
                     {view.status}
                   </span>
@@ -172,7 +172,7 @@ export default function BookingSuccessPage() {
               </div>
             </div>
           ) : (
-            <div className="px-6 py-8 text-center text-sm text-[#94A3B8]">
+            <div className="px-6 py-8 text-center text-sm text-[#64748B]">
               Your payment was confirmed. View the full details in{" "}
               <Link href="/tickets" className="text-[#2563EB] underline">My Tickets</Link>.
             </div>
@@ -186,7 +186,7 @@ export default function BookingSuccessPage() {
           transition={{ delay: 0.25 }}
           className="bg-white rounded-2xl border border-[#E2E8F0] px-6 py-5 mb-6"
         >
-          <p className="text-xs font-bold uppercase tracking-widest text-[#94A3B8] mb-3">Next Steps</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-[#64748B] mb-3">Next Steps</p>
           <ul className="space-y-2.5 text-sm text-[#475569]">
             {[
               [CheckCircle2, "Confirmation email sent to your inbox", "#16A34A"],
@@ -222,7 +222,7 @@ export default function BookingSuccessPage() {
           </Button>
         </motion.div>
 
-        <div className="flex items-center gap-2 text-xs text-[#94A3B8] justify-center mt-5">
+        <div className="flex items-center gap-2 text-xs text-[#64748B] justify-center mt-5">
           <ShieldCheck size={13} className="text-[#16A34A]" />
           Secured by Paystack
         </div>

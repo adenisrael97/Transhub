@@ -19,10 +19,10 @@ export default function Pagination({ pagination, onPageChange, loading = false, 
     'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
 
   return (
-    <div className={`flex items-center justify-between gap-3 text-sm text-[#94A3B8] pt-3 ${className}`}>
+    <div className={`flex items-center justify-between gap-3 text-sm text-[#64748B] pt-3 ${className}`}>
       <span className="text-xs">
-        Showing <span className="font-semibold text-[#475569]">{start}–{end}</span> of{' '}
-        <span className="font-semibold text-[#475569]">{total.toLocaleString()}</span>
+        Showing <span className="font-semibold text-[#0F172A] tabular-nums">{start}–{end}</span> of{' '}
+        <span className="font-semibold text-[#0F172A] tabular-nums">{total.toLocaleString()}</span>
       </span>
       <div className="flex items-center gap-2">
         <button

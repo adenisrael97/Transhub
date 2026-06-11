@@ -18,9 +18,9 @@ export default function DataTable({
 
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center">
+      <div className="th-card p-16 text-center">
         {emptyIcon && <div className="flex justify-center mb-4 text-[#94A3B8]">{emptyIcon}</div>}
-        <p className="text-sm text-[#94A3B8]">{emptyMessage}</p>
+        <p className="text-sm font-medium text-[#64748B]">{emptyMessage}</p>
         {emptyAction && <div className="mt-4">{emptyAction}</div>}
       </div>
     );
@@ -52,7 +52,7 @@ export default function DataTable({
   return (
     <div className="space-y-3">
       {/* Desktop table */}
-      <div className="hidden sm:block bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
+      <div className="hidden sm:block th-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="sticky top-0 bg-[#F8FAFC] border-b border-[#E2E8F0]">
@@ -60,7 +60,7 @@ export default function DataTable({
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-5 py-3.5 text-xs font-bold text-[#94A3B8] uppercase tracking-wider whitespace-nowrap ${col.sortable ? 'cursor-pointer select-none hover:text-[#475569]' : ''} ${col.className ?? ''}`}
+                    className={`px-5 py-3.5 text-xs font-bold text-[#64748B] uppercase tracking-wider whitespace-nowrap ${col.sortable ? 'cursor-pointer select-none hover:text-[#0F172A]' : ''} ${col.className ?? ''}`}
                     onClick={col.sortable ? () => toggleSort(col.key) : undefined}
                   >
                     <span className="inline-flex items-center gap-1.5">
@@ -89,11 +89,11 @@ export default function DataTable({
       {/* Mobile: stacked cards */}
       <div className="sm:hidden space-y-3">
         {paginated.map((item, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-[#E2E8F0] p-4">
+          <div key={i} className="th-card p-4">
             {columns.map((col) => (
-              <div key={col.key} className="flex justify-between py-1.5 text-sm border-b border-[#F1F5F9] last:border-0">
-                <span className="text-[#94A3B8] text-xs font-semibold uppercase tracking-wide">{col.label}</span>
-                <span className="text-[#0F172A] font-medium text-right">{String(item[col.key] ?? '—')}</span>
+              <div key={col.key} className="flex justify-between gap-3 py-1.5 text-sm border-b border-[#F1F5F9] last:border-0">
+                <span className="text-[#64748B] text-xs font-semibold uppercase tracking-wide">{col.label}</span>
+                <span className="text-[#0F172A] font-semibold text-right">{String(item[col.key] ?? '—')}</span>
               </div>
             ))}
           </div>
@@ -102,7 +102,7 @@ export default function DataTable({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-[#94A3B8] pt-1">
+        <div className="flex items-center justify-between text-sm text-[#64748B] pt-1">
           <span>
             Showing {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, sorted.length)} of {sorted.length}
           </span>
@@ -110,15 +110,15 @@ export default function DataTable({
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-xs font-semibold hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Previous
             </button>
-            <span className="text-xs font-medium text-[#0F172A]">{page} / {totalPages}</span>
+            <span className="text-xs font-semibold text-[#0F172A] tabular-nums">{page} / {totalPages}</span>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-xs font-semibold hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-xs font-semibold text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Next
             </button>

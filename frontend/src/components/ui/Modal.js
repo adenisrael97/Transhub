@@ -95,7 +95,7 @@ export default function Modal({
               {!hideClose && (
                 <button
                   onClick={onClose}
-                  className="text-[#94A3B8] hover:text-[#475569] transition-colors p-1.5 rounded-lg hover:bg-[#F1F5F9]"
+                  className="text-[#64748B] hover:text-[#0F172A] transition-colors p-1.5 rounded-lg hover:bg-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:ring-offset-1"
                   aria-label="Close dialog"
                 >
                   <X size={18} />

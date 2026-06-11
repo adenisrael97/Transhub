@@ -65,18 +65,18 @@ export default function OperatorTransactionsPage() {
 
         <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
           {loading ? (
-            <div className="py-16 flex flex-col items-center gap-3 text-[#94A3B8]">
+            <div className="py-16 flex flex-col items-center gap-3 text-[#64748B]">
               <Loader2 size={24} className="animate-spin" /><p className="text-sm">Loading…</p>
             </div>
           ) : txns.length === 0 ? (
-            <div className="py-16 text-center text-[#94A3B8] text-sm flex flex-col items-center gap-2">
+            <div className="py-16 text-center text-[#64748B] text-sm flex flex-col items-center gap-2">
               <Receipt size={22} /> No transactions match your filters
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider">
+                  <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#64748B] font-semibold uppercase tracking-wider">
                     {["Reference", "Type", "Customer", "Description", "Amount", "Status", "Date"].map((h) => (
                       <th key={h} className="px-6 py-4">{h}</th>
                     ))}

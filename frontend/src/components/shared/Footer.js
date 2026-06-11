@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bus, X, Globe, MessageCircle, Send } from 'lucide-react';
-
-const HIDDEN_PREFIXES = ['/admin', '/operator', '/manage-trips', '/bookings', '/operators', '/analytics'];
+import { CHROME_HIDDEN_PREFIXES } from '@/lib/constants';
 
 const SERVICES = [
   { href: '/search',            label: 'Book a Seat' },
@@ -52,7 +51,7 @@ function LinkList({ items }) {
 
 export default function Footer() {
   const pathname = usePathname();
-  if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
+  if (CHROME_HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
 
   return (
     <footer className="bg-[#0A1B3D] text-white">

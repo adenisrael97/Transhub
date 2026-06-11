@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bus, Check, Users, Phone, Heart, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Bus, Check, Users, Phone, Heart, ChevronDown, ChevronUp, Loader2, MapPin, Lock, Unlock, RefreshCw } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 import useToastStore from "@/store/toastStore";
 import { fetchDriverTrips, markTripFull, setTripOfflineCount, fetchTripPassengers } from "@/services/trips";
@@ -106,12 +106,18 @@ export default function DriverDashboardPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-[#0F172A]">Today&apos;s Trips</h1>
+        <div>
+          <h1 className="text-xl font-bold text-[#0F172A]">Today&apos;s Trips</h1>
+          <p className="text-xs font-medium text-[#64748B] mt-0.5">
+            {new Date().toLocaleDateString("en-NG", { weekday: "long", month: "long", day: "numeric" })}
+          </p>
+        </div>
         <button
           onClick={load}
           disabled={loading}
-          className="text-sm text-[#2563EB] font-medium disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 text-sm text-[#D97706] font-semibold disabled:opacity-40 px-3 py-2 rounded-xl border border-[#FDE68A] bg-[#FFFBEB] hover:bg-[#FEF3C7] transition-colors"
         >
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           {loading ? "Loading…" : "Refresh"}
         </button>
       </div>
@@ -123,16 +129,17 @@ export default function DriverDashboardPage() {
       )}
 
       {loading && trips.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 text-[#94A3B8] py-16">
+        <div className="flex flex-col items-center gap-3 text-[#64748B] py-16">
           <div className="w-8 h-8 border-2 border-[#D97706] border-t-transparent rounded-full animate-spin" />
           <p className="text-sm">Loading trips…</p>
         </div>
       ) : !error && trips.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-12 text-center">
-          <div className="w-12 h-12 bg-[#F1F5F9] rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <Bus size={24} className="text-[#94A3B8]" />
+        <div className="th-card p-12 text-center">
+          <div className="w-14 h-14 bg-[#FFFBEB] rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <Bus size={26} className="text-[#D97706]" />
           </div>
-          <p className="text-sm font-medium text-[#94A3B8]">No trips scheduled for today</p>
+          <p className="text-sm font-semibold text-[#0F172A]">No trips scheduled for today</p>
+          <p className="text-xs text-[#64748B] mt-1">New assignments will appear here automatically.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -148,46 +155,48 @@ export default function DriverDashboardPage() {
             return (
               <div
                 key={trip.id}
-                className={`bg-white rounded-2xl border transition-colors ${
-                  blocked ? "border-[#FECACA]" : "border-[#E2E8F0]"
+                className={`th-card overflow-hidden transition-colors ${
+                  blocked ? "border-[#FECACA] ring-1 ring-[#FECACA]" : ""
                 }`}
               >
                 <div className="p-5">
                   {/* Header */}
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <div>
-                      <p className="font-bold text-[#0F172A]">
+                      <p className="font-bold text-[#0F172A] text-[15px]">
                         {trip.from} → {trip.to}
                       </p>
-                      <p className="text-xs text-[#94A3B8] mt-0.5">
+                      <p className="text-xs font-medium text-[#64748B] mt-0.5">
                         {trip.vehicleType} · {formatTime(trip.departureTime)}
                       </p>
                       {trip.parkName && (
-                        <p className="text-xs text-[#64748B] mt-1">📍 {trip.parkName}</p>
+                        <p className="text-xs text-[#64748B] mt-1 flex items-center gap-1">
+                          <MapPin size={11} className="text-[#64748B]" /> {trip.parkName}
+                        </p>
                       )}
                     </div>
                     {blocked && (
-                      <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-[#FEF2F2] text-[#DC2626]">
-                        FULL
+                      <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#FEF2F2] text-[#DC2626]">
+                        <Lock size={11} /> FULL
                       </span>
                     )}
                   </div>
 
                   {/* Seat summary */}
                   <div className="flex items-center gap-2 mb-4">
-                    <Users size={14} className="text-[#94A3B8]" />
-                    <span className="text-sm text-[#64748B]">
-                      <span className="font-semibold text-[#0F172A]">{booked}</span> booked
+                    <Users size={14} className="text-[#64748B]" />
+                    <span className="text-sm text-[#475569]">
+                      <span className="font-bold text-[#0F172A]">{booked}</span> booked
                       {(trip.offlineCount ?? 0) > 0 && (
-                        <span className="text-[#D97706]"> ({trip.offlineCount} walk-in)</span>
+                        <span className="text-[#B45309] font-semibold"> ({trip.offlineCount} walk-in)</span>
                       )}
-                      <span className="text-[#94A3B8]"> / {trip.totalSeats} total</span>
+                      <span className="text-[#64748B]"> / {trip.totalSeats} total</span>
                     </span>
                   </div>
 
                   {/* Walk-in count input */}
                   <div className="flex items-center gap-2 mb-4 p-3 bg-[#FFFBEB] rounded-xl border border-[#FDE68A]">
-                    <span className="text-xs font-medium text-[#92400E]">Walk-in passengers:</span>
+                    <span className="text-xs font-semibold text-[#92400E]">Walk-in passengers:</span>
                     <input
                       type="number"
                       min="0"
@@ -215,17 +224,19 @@ export default function DriverDashboardPage() {
                   <button
                     onClick={() => handleMarkFull(trip)}
                     disabled={fulling === trip.id}
-                    className={`w-full py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-40 ${
+                    className={`w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-40 inline-flex items-center justify-center gap-2 shadow-sm active:enabled:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                       blocked
-                        ? "bg-[#16A34A] text-white hover:bg-[#15803D]"
-                        : "bg-[#DC2626] text-white hover:bg-[#B91C1C]"
+                        ? "bg-[#16A34A] text-white hover:bg-[#15803D] focus:ring-[#16A34A]"
+                        : "bg-[#DC2626] text-white hover:bg-[#B91C1C] focus:ring-[#DC2626]"
                     }`}
                   >
-                    {fulling === trip.id
-                      ? "Updating…"
-                      : blocked
-                      ? "Reopen for Booking"
-                      : "Mark Bus as Full"}
+                    {fulling === trip.id ? (
+                      <><Loader2 size={15} className="animate-spin" /> Updating…</>
+                    ) : blocked ? (
+                      <><Unlock size={15} /> Reopen for Booking</>
+                    ) : (
+                      <><Lock size={15} /> Mark Bus as Full</>
+                    )}
                   </button>
                 </div>
 
@@ -245,10 +256,10 @@ export default function DriverDashboardPage() {
                       )}
                     </div>
                     {pax?.loading
-                      ? <Loader2 size={14} className="animate-spin text-[#94A3B8]" />
+                      ? <Loader2 size={14} className="animate-spin text-[#64748B]" />
                       : isOpen
-                      ? <ChevronUp size={14} className="text-[#94A3B8]" />
-                      : <ChevronDown size={14} className="text-[#94A3B8]" />
+                      ? <ChevronUp size={14} className="text-[#64748B]" />
+                      : <ChevronDown size={14} className="text-[#64748B]" />
                     }
                   </button>
 
@@ -259,12 +270,12 @@ export default function DriverDashboardPage() {
                           {pax.error}
                         </p>
                       ) : pax?.loading ? (
-                        <div className="flex items-center gap-2 text-sm text-[#94A3B8] py-3 justify-center">
+                        <div className="flex items-center gap-2 text-sm text-[#64748B] py-3 justify-center">
                           <Loader2 size={14} className="animate-spin" />
                           Loading passengers…
                         </div>
                       ) : passengerRows.length === 0 ? (
-                        <p className="text-sm text-[#94A3B8] text-center py-4">
+                        <p className="text-sm font-medium text-[#64748B] text-center py-4">
                           No confirmed passengers yet
                         </p>
                       ) : (
@@ -277,30 +288,30 @@ export default function DriverDashboardPage() {
                               <div className="grid grid-cols-2 gap-3">
                                 {/* Passenger */}
                                 <div>
-                                  <p className="text-xs font-semibold text-[#94A3B8] mb-1">
+                                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#64748B] mb-1">
                                     Passenger {idx + 1}
                                   </p>
                                   <p className="font-semibold text-sm text-[#0F172A]">{paxRow.fullName}</p>
                                   <a
                                     href={`tel:${paxRow.phone}`}
-                                    className="flex items-center gap-1 text-xs text-[#2563EB] hover:underline mt-0.5"
+                                    className="flex items-center gap-1 text-xs font-medium text-[#2563EB] hover:underline mt-0.5"
                                   >
                                     <Phone size={10} /> {paxRow.phone}
                                   </a>
                                   {paxRow.email && (
-                                    <p className="text-xs text-[#94A3B8] mt-0.5">{paxRow.email}</p>
+                                    <p className="text-xs text-[#64748B] mt-0.5">{paxRow.email}</p>
                                   )}
                                 </div>
 
                                 {/* Next of kin */}
                                 <div>
-                                  <p className="text-xs font-semibold text-[#94A3B8] mb-1 flex items-center gap-1">
+                                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#64748B] mb-1 flex items-center gap-1">
                                     <Heart size={10} className="text-[#EF4444]" /> Next of Kin
                                   </p>
                                   <p className="font-semibold text-sm text-[#0F172A]">{paxRow.nextOfKinName}</p>
                                   <a
                                     href={`tel:${paxRow.nextOfKinPhone}`}
-                                    className="flex items-center gap-1 text-xs text-[#2563EB] hover:underline mt-0.5"
+                                    className="flex items-center gap-1 text-xs font-medium text-[#2563EB] hover:underline mt-0.5"
                                   >
                                     <Phone size={10} /> {paxRow.nextOfKinPhone}
                                   </a>
@@ -310,7 +321,7 @@ export default function DriverDashboardPage() {
                               {/* Special needs */}
                               {paxRow.specialNeeds && (
                                 <div className="mt-2 pt-2 border-t border-[#E2E8F0]">
-                                  <p className="text-xs font-semibold text-[#94A3B8] mb-0.5">Special Needs</p>
+                                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#64748B] mb-0.5">Special Needs</p>
                                   <p className="text-xs text-[#475569] bg-[#FEF9C3] border border-[#FDE68A] rounded-lg px-2.5 py-1.5">
                                     {paxRow.specialNeeds}
                                   </p>

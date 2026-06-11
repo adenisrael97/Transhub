@@ -68,10 +68,10 @@ function TicketContent({ bookingId }) {
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
           <div className="w-14 h-14 bg-[#F1F5F9] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Ticket size={26} className="text-[#94A3B8]" />
+            <Ticket size={26} className="text-[#64748B]" />
           </div>
           <p className="text-lg font-semibold text-[#0F172A] mb-1">Ticket not found</p>
-          <p className="text-sm text-[#94A3B8] mb-6">This ticket doesn&apos;t exist or isn&apos;t yours.</p>
+          <p className="text-sm text-[#64748B] mb-6">This ticket doesn&apos;t exist or isn&apos;t yours.</p>
           <Button as={Link} href="/tickets" variant="outline" leftIcon={<ArrowLeft size={15} />}>My Tickets</Button>
         </div>
       </div>

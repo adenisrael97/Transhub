@@ -95,7 +95,7 @@ function Section({ title, icon: Icon, children }) {
 function InfoRow({ label, value, mono = false }) {
   return (
     <div className="flex justify-between text-sm py-1.5 border-b border-[#F8FAFC] last:border-0">
-      <span className="text-[#94A3B8] font-medium min-w-35">{label}</span>
+      <span className="text-[#64748B] font-medium min-w-35">{label}</span>
       <span className={`text-[#0F172A] text-right ${mono ? "font-mono text-xs" : ""}`}>
         {value || "—"}
       </span>
@@ -226,7 +226,7 @@ function QuoteModal({ charter, onClose, onSuccess }) {
             placeholder="e.g. 140000"
             className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#D97706]"
           />
-          <p className="text-xs text-[#94A3B8] mt-1">
+          <p className="text-xs text-[#64748B] mt-1">
             This price is shown to the customer. Operator cost and service fee are internal.
           </p>
         </div>
@@ -407,7 +407,7 @@ function DetailModal({ charter, onClose, onUpdate }) {
           <span className={`inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ${statusClass}`}>
             {statusLabel}
           </span>
-          <span className="text-xs text-[#94A3B8]">Submitted {fmtDate(charter.createdAt)}</span>
+          <span className="text-xs text-[#64748B]">Submitted {fmtDate(charter.createdAt)}</span>
         </div>
 
         {/* Customer Information */}
@@ -558,17 +558,17 @@ function CharterCard({ charter, onSelect }) {
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-[#64748B]">
         <div className="flex items-center gap-1.5 col-span-2">
-          <MapPin size={11} className="text-[#94A3B8] shrink-0" />
+          <MapPin size={11} className="text-[#64748B] shrink-0" />
           <span className="truncate font-medium text-[#374151]">
             {charter.fromLocation} → {charter.toLocation}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <Clock size={11} className="text-[#94A3B8]" />
+          <Clock size={11} className="text-[#64748B]" />
           <span>{fmtDate(charter.departureAt)}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <Users size={11} className="text-[#94A3B8]" />
+          <Users size={11} className="text-[#64748B]" />
           <span>{charter.passengerCount} pax</span>
         </div>
         {charter.quotedPrice && (

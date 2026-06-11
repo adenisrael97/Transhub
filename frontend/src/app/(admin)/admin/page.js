@@ -99,10 +99,10 @@ export default function AdminDashboardPage() {
         {/* Quick actions */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           {[
-            { label: "Manage Trips",  Icon: Bus,       href: "/manage-trips", cls: "bg-[#EFF6FF] text-[#2563EB] hover:bg-[#DBEAFE]" },
-            { label: "View Bookings", Icon: Ticket,    href: "/bookings",     cls: "bg-[#F0FDF4] text-[#16A34A] hover:bg-[#DCFCE7]" },
-            { label: "Analytics",     Icon: DollarSign,href: "/analytics",    cls: "bg-[#F5F3FF] text-[#7C3AED] hover:bg-[#EDE9FE]" },
-            { label: "Operators",     Icon: Building2, href: "/operators",    cls: "bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]" },
+            { label: "Manage Trips",  Icon: Bus,       href: "/manage-trips", cls: "bg-[#EFF6FF] text-[#1D4ED8] hover:bg-[#DBEAFE]" },
+            { label: "View Bookings", Icon: Ticket,    href: "/bookings",     cls: "bg-[#F0FDF4] text-[#15803D] hover:bg-[#DCFCE7]" },
+            { label: "Analytics",     Icon: DollarSign,href: "/analytics",    cls: "bg-[#F5F3FF] text-[#6D28D9] hover:bg-[#EDE9FE]" },
+            { label: "Operators",     Icon: Building2, href: "/operators",    cls: "bg-[#EEF2FF] text-[#4338CA] hover:bg-[#E0E7FF]" },
           ].map(({ label, Icon, href, cls }) => (
             <Link key={label} href={href} className={`flex items-center gap-2.5 px-4 py-3 rounded-xl font-semibold text-sm transition-colors ${cls}`}>
               <Icon size={16} /> {label}
@@ -112,59 +112,79 @@ export default function AdminDashboardPage() {
 
         <div className="grid lg:grid-cols-3 gap-6 mb-6">
           {/* Revenue chart (last 6 confirmed bookings by day) */}
-          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6">
-            <h2 className="font-semibold text-[#0F172A] mb-5">Daily Revenue (₦) — last 6 days</h2>
+          <div className="th-card p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-semibold text-[#0F172A]">Daily Revenue</h2>
+              <span className="text-[11px] font-semibold text-[#475569] bg-[#F1F5F9] px-2 py-1 rounded-lg">Last 6 days</span>
+            </div>
             {loading ? (
-              <div className="h-32 flex items-center justify-center">
-                <Loader2 size={20} className="animate-spin text-[#94A3B8]" />
+              <div className="h-40 flex items-center justify-center">
+                <Loader2 size={20} className="animate-spin text-[#64748B]" />
               </div>
-            ) : revenue.length === 0 ? (
-              <div className="h-32 flex items-center justify-center text-sm text-[#94A3B8]">No data yet</div>
+            ) : revenue.length === 0 || maxRev <= 0 ? (
+              <div className="h-40 flex flex-col items-center justify-center gap-2 text-center">
+                <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] flex items-center justify-center">
+                  <DollarSign size={18} className="text-[#2563EB]" />
+                </div>
+                <p className="text-sm font-medium text-[#64748B]">No revenue recorded yet</p>
+              </div>
             ) : (
-              <div className="flex items-end gap-2 h-32">
-                {revenue.map((pt) => (
-                  <div key={pt.date} className="flex-1 flex flex-col items-center gap-1">
-                    <div
-                      className="w-full bg-[#2563EB] rounded-t-md"
-                      style={{ height: `${(pt.revenue / maxRev) * 100}%`, minHeight: "4px" }}
-                      title={`₦${pt.revenue.toLocaleString()}`}
-                    />
-                    <p className="text-[10px] text-[#94A3B8] truncate w-full text-center">
-                      {new Date(pt.date).toLocaleDateString("en-NG", { month: "short", day: "numeric" })}
-                    </p>
-                  </div>
-                ))}
+              <div className="flex items-stretch gap-2.5 h-40">
+                {revenue.map((pt) => {
+                  const pct = Math.round((pt.revenue / maxRev) * 100);
+                  return (
+                    <div key={pt.date} className="flex-1 flex flex-col items-center gap-2 group">
+                      <span className="text-[10px] font-bold text-[#0F172A] tabular-nums opacity-0 group-hover:opacity-100 transition-opacity">
+                        {pt.revenue > 0 ? fmtRevenue(pt.revenue) : ""}
+                      </span>
+                      <div className="relative w-full flex-1 bg-[#F1F5F9] rounded-lg flex items-end overflow-hidden" title={`₦${pt.revenue.toLocaleString()}`}>
+                        <div
+                          className="w-full bg-linear-to-t from-[#1D4ED8] to-[#3B82F6] rounded-lg transition-all group-hover:from-[#1E40AF] group-hover:to-[#2563EB]"
+                          style={{ height: pt.revenue > 0 ? `${Math.max(pct, 3)}%` : "0%" }}
+                        />
+                      </div>
+                      <p className="text-[10px] font-medium text-[#64748B] truncate w-full text-center">
+                        {new Date(pt.date).toLocaleDateString("en-NG", { month: "short", day: "numeric" })}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             )}
-            <p className="text-xs text-[#94A3B8] mt-3 text-right">
-              <Link href="/analytics" className="hover:text-[#2563EB] transition-colors">View full analytics →</Link>
+            <p className="text-xs text-[#64748B] mt-4 text-right">
+              <Link href="/analytics" className="font-semibold text-[#2563EB] hover:underline transition-colors">View full analytics →</Link>
             </p>
           </div>
 
           {/* Recent bookings preview */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E2E8F0]">
+          <div className="lg:col-span-2 th-card overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#F1F5F9]">
               <h2 className="font-semibold text-[#0F172A]">Recent Bookings</h2>
-              <Link href="/bookings" className="text-xs text-[#2563EB] font-semibold hover:underline">View all</Link>
+              <Link href="/bookings" className="text-xs text-[#2563EB] font-semibold hover:underline">View all →</Link>
             </div>
             {loading ? (
               <div className="p-8 flex justify-center">
-                <Loader2 size={22} className="animate-spin text-[#94A3B8]" />
+                <Loader2 size={22} className="animate-spin text-[#64748B]" />
               </div>
             ) : bookings.length === 0 ? (
-              <div className="px-6 py-8 text-sm text-[#94A3B8]">No bookings yet.</div>
+              <div className="px-6 py-12 text-center text-sm font-medium text-[#64748B]">No bookings yet.</div>
             ) : (
               <div className="divide-y divide-[#F1F5F9]">
                 {bookings.map((b) => (
-                  <div key={b.id} className="px-6 py-4 flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[#0F172A] font-mono truncate">{b.paymentRef ?? b.id.slice(0, 8)}</p>
-                      <p className="text-xs text-[#94A3B8]">
-                        {b.seats.map((s) => s.label).join(", ")} · {formatTime(b.createdAt)}
-                      </p>
+                  <div key={b.id} className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-[#F8FAFC] transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-[#EFF6FF] flex items-center justify-center shrink-0">
+                        <Ticket size={16} className="text-[#2563EB]" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#0F172A] font-mono truncate">{b.paymentRef ?? b.id.slice(0, 8)}</p>
+                        <p className="text-xs text-[#64748B]">
+                          {b.seats.map((s) => s.label).join(", ")} · {formatTime(b.createdAt)}
+                        </p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-sm font-semibold text-[#2563EB]">₦{b.totalAmount.toLocaleString()}</span>
+                      <span className="text-sm font-bold text-[#0F172A] tabular-nums">₦{b.totalAmount.toLocaleString()}</span>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[b.status] ?? STATUS_BADGE.pending}`}>
                         {capitalize(b.status)}
                       </span>

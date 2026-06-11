@@ -120,7 +120,7 @@ export default function TripDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-[#94A3B8]">
+        <div className="flex flex-col items-center gap-3 text-[#64748B]">
           <div className="w-8 h-8 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin" />
           <p className="text-sm">Loading trip…</p>
         </div>
@@ -133,10 +133,10 @@ export default function TripDetailPage() {
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-[#F1F5F9] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Bus size={28} className="text-[#94A3B8]" />
+            <Bus size={28} className="text-[#64748B]" />
           </div>
           <p className="text-lg font-semibold text-[#0F172A]">Trip not found</p>
-          <p className="text-sm text-[#94A3B8] mt-1">This trip may no longer be available.</p>
+          <p className="text-sm text-[#64748B] mt-1">This trip may no longer be available.</p>
         </div>
       </div>
     );
@@ -152,10 +152,10 @@ export default function TripDetailPage() {
               <div>
                 <h1 className="text-xl font-bold text-[#0F172A] flex items-center gap-2">
                   {displayTrip.from}
-                  <ArrowRight size={16} className="text-[#94A3B8]" />
+                  <ArrowRight size={16} className="text-[#64748B]" />
                   {displayTrip.to}
                 </h1>
-                <p className="text-sm text-[#94A3B8] mt-1">
+                <p className="text-sm text-[#64748B] mt-1">
                   {displayTrip.operator} · {displayTrip.vehicleType}
                 </p>
               </div>
@@ -182,7 +182,7 @@ export default function TripDetailPage() {
             {/* Amenities */}
             {displayTrip.amenities?.length > 0 && (
               <div className="mb-6">
-                <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">Bus Amenities</p>
+                <p className="text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">Bus Amenities</p>
                 <div className="flex flex-wrap gap-2">
                   {displayTrip.amenities.map((a) => (
                     <span key={a} className="text-xs font-medium bg-[#F0FDF4] text-[#15803D] border border-[#BBF7D0] px-2.5 py-1 rounded-full">
@@ -196,7 +196,7 @@ export default function TripDetailPage() {
             {/* Quantity stepper */}
             <div className="border border-[#E2E8F0] rounded-2xl p-6">
               <p className="text-sm font-semibold text-[#0F172A] mb-1">How many seats?</p>
-              <p className="text-xs text-[#94A3B8] mb-5">
+              <p className="text-xs text-[#64748B] mb-5">
                 Seating is open — the operator assigns seats at boarding. Up to {MAX_PER_BOOKING} per booking.
               </p>
               <div className="flex items-center justify-center gap-6">
@@ -238,7 +238,7 @@ export default function TripDetailPage() {
                   ["Seats",         blocked ? "—" : String(quantity)],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-2">
-                    <span className="text-[#94A3B8] shrink-0">{label}</span>
+                    <span className="text-[#64748B] shrink-0">{label}</span>
                     <span className="font-medium text-[#0F172A] text-right truncate">{value}</span>
                   </div>
                 ))}
@@ -259,7 +259,7 @@ export default function TripDetailPage() {
               {holding ? "Reserving seats…" : blocked ? "Not Available" : "Continue to Checkout"}
             </Button>
 
-            <div className="flex items-center gap-2 text-xs text-[#94A3B8] justify-center">
+            <div className="flex items-center gap-2 text-xs text-[#64748B] justify-center">
               <ShieldCheck size={13} className="text-[#16A34A]" />
               Seats reserved for 10 minutes during checkout
             </div>

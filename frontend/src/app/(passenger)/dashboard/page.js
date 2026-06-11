@@ -65,7 +65,7 @@ function PassengerDashboard({ user }) {
         >
           <div>
             <h1 className="text-2xl font-bold text-[#0F172A]">Hello, {firstName}</h1>
-            <p className="text-sm text-[#94A3B8] mt-0.5">Welcome to your TransHub dashboard</p>
+            <p className="text-sm text-[#64748B] mt-0.5">Welcome to your TransHub dashboard</p>
           </div>
           <Link href="/search" className="inline-flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors">
             <Search size={15} /> Book New Trip
@@ -103,7 +103,7 @@ function PassengerDashboard({ user }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E2E8F0]">
+        <div className="th-card overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#F1F5F9]">
             <h2 className="font-semibold text-[#0F172A]">Recent Tickets</h2>
             <div className="flex items-center gap-4">
@@ -129,14 +129,14 @@ function PassengerDashboard({ user }) {
               ))}
             </div>
           ) : error ? (
-            <div className="px-6 py-10 text-center text-sm text-[#94A3B8]">{error}</div>
+            <div className="px-6 py-10 text-center text-sm font-medium text-[#64748B]">{error}</div>
           ) : recent.length === 0 ? (
             <div className="px-6 py-12 text-center">
               <div className="w-12 h-12 bg-[#EFF6FF] rounded-2xl flex items-center justify-center mx-auto mb-3">
                 <Ticket size={22} className="text-[#2563EB]" />
               </div>
               <p className="text-sm font-semibold text-[#0F172A]">No tickets yet</p>
-              <p className="text-xs text-[#94A3B8] mt-1 mb-4">Book your first trip to see it here.</p>
+              <p className="text-xs text-[#64748B] mt-1 mb-4">Book your first trip to see it here.</p>
               <Link href="/search" className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2563EB] hover:underline">
                 Search Trips <ArrowRight size={13} />
               </Link>
@@ -151,7 +151,7 @@ function PassengerDashboard({ user }) {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[#0F172A] truncate">{t.from} → {t.to}</p>
-                      <p className="text-xs text-[#94A3B8]">
+                      <p className="text-xs text-[#64748B]">
                         {formatDateLong(t.departureTime)} · {formatTime(t.departureTime)} · {t.seatCount} seat{t.seatCount === 1 ? "" : "s"}
                       </p>
                     </div>
@@ -160,7 +160,7 @@ function PassengerDashboard({ user }) {
                     <span className={`hidden sm:inline text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_BADGE[t.status] ?? ""}`}>
                       {capitalize(t.status)}
                     </span>
-                    <span className="text-sm font-bold text-[#2563EB]">₦{t.totalAmount.toLocaleString()}</span>
+                    <span className="text-sm font-bold text-[#0F172A] tabular-nums">₦{t.totalAmount.toLocaleString()}</span>
                   </div>
                 </Link>
               ))}

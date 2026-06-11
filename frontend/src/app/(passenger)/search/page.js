@@ -201,7 +201,7 @@ function SearchContent() {
               <Search size={28} className="text-[#2563EB]" />
             </div>
             <p className="text-lg font-semibold text-[#0F172A]">Search for a trip to get started</p>
-            <p className="text-sm text-[#94A3B8] mt-1">Select your route and date above</p>
+            <p className="text-sm text-[#64748B] mt-1">Select your route and date above</p>
           </div>
         )}
 
@@ -236,14 +236,14 @@ function SearchContent() {
               <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 mb-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <label className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Sort by</span>
+                    <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Sort by</span>
                     <select aria-label="Sort by" value={filters.sort} onChange={(e) => patchFilter({ sort: e.target.value })} className={fieldClass}>
                       {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </label>
 
                   <label className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Vehicle type</span>
+                    <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Vehicle type</span>
                     <select aria-label="Vehicle type" value={filters.vehicleType} onChange={(e) => patchFilter({ vehicleType: e.target.value })} className={fieldClass}>
                       <option value="">All vehicles</option>
                       {VEHICLE_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -251,7 +251,7 @@ function SearchContent() {
                   </label>
 
                   <label className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Transport company</span>
+                    <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Transport company</span>
                     <select aria-label="Transport company" value={filters.operatorId} onChange={(e) => patchFilter({ operatorId: e.target.value })} className={fieldClass}>
                       <option value="">All companies</option>
                       {operators.map((o) => <option key={o.id} value={o.id}>{o.companyName}</option>)}
@@ -259,7 +259,7 @@ function SearchContent() {
                   </label>
 
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Price (₦)</span>
+                    <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Price (₦)</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number" min="0" inputMode="numeric" placeholder="Min" aria-label="Minimum price"
@@ -267,7 +267,7 @@ function SearchContent() {
                         onChange={(e) => patchFilter({ minPrice: e.target.value })}
                         className={`${fieldClass} w-full`}
                       />
-                      <span className="text-[#94A3B8]">–</span>
+                      <span className="text-[#64748B]">–</span>
                       <input
                         type="number" min="0" inputMode="numeric" placeholder="Max" aria-label="Maximum price"
                         value={filters.maxPrice}
@@ -280,7 +280,7 @@ function SearchContent() {
 
                 {/* Amenities */}
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Amenities</span>
+                  <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Amenities</span>
                   <div className="flex flex-wrap gap-2">
                     {AMENITY_FILTERS.map((a) => {
                       const checked = filters.amenities.includes(a);
@@ -319,12 +319,12 @@ function SearchContent() {
             {!loading && displayTrips.length === 0 && (
               <div className="text-center py-20">
                 <div className="w-16 h-16 bg-[#F1F5F9] rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Bus size={28} className="text-[#94A3B8]" />
+                  <Bus size={28} className="text-[#64748B]" />
                 </div>
                 <p className="text-lg font-semibold text-[#0F172A]">
                   {activeFilters > 0 ? "No trips match your filters" : "No trips found for this route"}
                 </p>
-                <p className="text-sm text-[#94A3B8] mt-1">
+                <p className="text-sm text-[#64748B] mt-1">
                   {activeFilters > 0 ? "Try widening your price range or clearing filters" : "Try a different date or route"}
                 </p>
                 {activeFilters > 0 && (
@@ -355,7 +355,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center text-[#94A3B8]">Loading…</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center text-[#64748B]">Loading…</div>}>
       <SearchContent />
     </Suspense>
   );

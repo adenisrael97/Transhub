@@ -4,6 +4,28 @@
  */
 import type { PaymentMethodId } from "@/types";
 
+/**
+ * Route prefixes that render inside a dashboard shell (Admin/Operator/Driver)
+ * and must NOT show the public marketing Navbar/Footer. Single source of truth
+ * for both components — when adding a new top-level dashboard route, add it
+ * here or it will render with double chrome (public navbar over the shell).
+ * NOTE: matching is prefix-based — '/charters' (admin) must not be shortened
+ * to '/charter', which would also hide chrome on the public charter pages.
+ */
+export const CHROME_HIDDEN_PREFIXES = [
+  "/admin",
+  "/operator",
+  "/driver",
+  "/manage-trips",
+  "/bookings",
+  "/charters",
+  "/waybills",
+  "/transactions",
+  "/customers",
+  "/operators",
+  "/analytics",
+] as const;
+
 /** Nigerian cities served by TransHub, used in search forms and selectors. */
 export const CITIES = [
   "Lagos",
@@ -52,21 +74,24 @@ export const AMENITY_FILTERS = ["AC", "WiFi", "Charging Port", "Reclining Seats"
  * Uses the design-system hex tokens (matching the rest of the UI), not the
  * generic Tailwind palette.
  */
+// Text colours are deliberately the 700-shade of each hue so small badge text
+// clears WCAG-AA (4.5:1) against its own light tint — the 600-shades used
+// previously sat around 3:1 (e.g. #16A34A on #F0FDF4 = 3.15).
 export const STATUS_BADGE: Record<string, string> = {
-  confirmed: "bg-[#F0FDF4] text-[#16A34A]",
-  pending: "bg-[#FFFBEB] text-[#D97706]",
-  completed: "bg-[#F1F5F9] text-[#64748B]",
-  cancelled: "bg-[#FEF2F2] text-[#DC2626]",
-  upcoming: "bg-[#EFF6FF] text-[#2563EB]",
-  active: "bg-[#F0FDF4] text-[#16A34A]",
-  scheduled: "bg-[#EFF6FF] text-[#2563EB]",
+  confirmed: "bg-[#F0FDF4] text-[#15803D]",
+  pending: "bg-[#FFFBEB] text-[#B45309]",
+  completed: "bg-[#F1F5F9] text-[#475569]",
+  cancelled: "bg-[#FEF2F2] text-[#B91C1C]",
+  upcoming: "bg-[#EFF6FF] text-[#1D4ED8]",
+  active: "bg-[#F0FDF4] text-[#15803D]",
+  scheduled: "bg-[#EFF6FF] text-[#1D4ED8]",
   // Operator request statuses
-  approved: "bg-[#F0FDF4] text-[#16A34A]",
-  declined: "bg-[#FEF2F2] text-[#DC2626]",
+  approved: "bg-[#F0FDF4] text-[#15803D]",
+  declined: "bg-[#FEF2F2] text-[#B91C1C]",
   // Waybill statuses
-  in_transit: "bg-[#FFFBEB] text-[#D97706]",
-  delivered: "bg-[#F0FDF4] text-[#16A34A]",
-  out_for_delivery: "bg-[#EFF6FF] text-[#2563EB]",
+  in_transit: "bg-[#FFFBEB] text-[#B45309]",
+  delivered: "bg-[#F0FDF4] text-[#15803D]",
+  out_for_delivery: "bg-[#EFF6FF] text-[#1D4ED8]",
 };
 
 /**

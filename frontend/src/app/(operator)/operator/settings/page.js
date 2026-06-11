@@ -27,7 +27,7 @@ export default function OperatorSettingsPage() {
               </p>
             </div>
           </div>
-          <ArrowRight size={18} className="text-[#94A3B8] shrink-0" />
+          <ArrowRight size={18} className="text-[#64748B] shrink-0" />
         </Link>
       }
     />

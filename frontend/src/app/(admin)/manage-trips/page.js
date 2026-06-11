@@ -111,7 +111,7 @@ export default function AdminTripsPage() {
           <div className="flex items-center gap-3 flex-wrap">
             {/* Search */}
             <div className="relative">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#64748B] pointer-events-none" />
               <input
                 value={inputValue}
                 onChange={handleSearchChange}
@@ -121,7 +121,7 @@ export default function AdminTripsPage() {
               {inputValue && (
                 <button
                   onClick={clearSearch}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B]"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#64748B]"
                 >
                   <X size={14} />
                 </button>
@@ -155,7 +155,7 @@ export default function AdminTripsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider">
+                <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#64748B] font-semibold uppercase tracking-wider">
                   {["Route", "Operator", "Departure", "Price", "Seats", "Status", "Availability"].map((h) => (
                     <th key={h} className="px-6 py-4 whitespace-nowrap">{h}</th>
                   ))}
@@ -176,7 +176,7 @@ export default function AdminTripsPage() {
                 ) : trips.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-20 text-center">
-                      <p className="text-sm font-medium text-[#94A3B8]">
+                      <p className="text-sm font-medium text-[#64748B]">
                         {search ? `No trips found matching "${search}"` : "No trips found"}
                       </p>
                       {search && (
@@ -197,14 +197,14 @@ export default function AdminTripsPage() {
                       <tr key={trip.id} className="hover:bg-[#F8FAFC] transition-colors">
                         <td className="px-6 py-4">
                           <p className="font-semibold text-[#0F172A] whitespace-nowrap">{trip.from} → {trip.to}</p>
-                          <p className="text-xs text-[#94A3B8] mt-0.5">{trip.vehicleType}</p>
+                          <p className="text-xs text-[#64748B] mt-0.5">{trip.vehicleType}</p>
                         </td>
                         <td className="px-6 py-4 text-[#64748B] max-w-40 truncate">{trip.operator}</td>
                         <td className="px-6 py-4 text-[#64748B] whitespace-nowrap">{formatTime(trip.departureTime)}</td>
                         <td className="px-6 py-4 font-medium text-[#2563EB] whitespace-nowrap">₦{trip.price.toLocaleString()}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="font-medium text-[#0F172A]">{booked}</span>
-                          <span className="text-[#94A3B8]">/{trip.totalSeats}</span>
+                          <span className="text-[#64748B]">/{trip.totalSeats}</span>
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${STATUS_BADGE[status] ?? STATUS_BADGE.scheduled}`}>
@@ -266,7 +266,7 @@ export default function AdminTripsPage() {
                 <div className="flex items-center gap-1 mx-1">
                   {pages.map((p, i) =>
                     p === "…" ? (
-                      <span key={`ellipsis-${i}`} className="w-8 text-center text-[#94A3B8] text-sm select-none">
+                      <span key={`ellipsis-${i}`} className="w-8 text-center text-[#64748B] text-sm select-none">
                         …
                       </span>
                     ) : (

@@ -105,7 +105,7 @@ function QuoteModal({ waybill, operators, onClose, onSent }) {
         <div className="bg-[#F8FAFC] rounded-xl p-4 text-sm space-y-1">
           <div className="flex items-center gap-2 font-semibold text-[#0F172A]">
             <span>{waybill.fromLocation}</span>
-            <ArrowRight size={13} className="text-[#94A3B8]" />
+            <ArrowRight size={13} className="text-[#64748B]" />
             <span>{waybill.toLocation}</span>
           </div>
           <p className="text-[#475569]">Sender: {waybill.senderName}</p>
@@ -244,7 +244,7 @@ function WaybillRow({ waybill, operators, onUpdate }) {
         <div className="p-5 flex flex-col gap-3">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <p className="text-xs text-[#94A3B8] uppercase tracking-wide font-medium mb-0.5">Waybill</p>
+              <p className="text-xs text-[#64748B] uppercase tracking-wide font-medium mb-0.5">Waybill</p>
               <p className="text-base font-bold text-[#0F172A] font-mono">{waybill.waybillNo}</p>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeClass}`}>
@@ -254,14 +254,14 @@ function WaybillRow({ waybill, operators, onUpdate }) {
 
           {/* Route + sender */}
           <div className="flex items-center gap-2 text-sm font-semibold text-[#0F172A]">
-            {waybill.fromLocation} <ArrowRight size={13} className="text-[#94A3B8]" /> {waybill.toLocation}
+            {waybill.fromLocation} <ArrowRight size={13} className="text-[#64748B]" /> {waybill.toLocation}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-[#64748B]">
             <span>Sender: <strong className="text-[#0F172A]">{waybill.senderName}</strong></span>
             <span>Recipient: <strong className="text-[#0F172A]">{waybill.recipientName}</strong></span>
             <span>Created: <strong className="text-[#0F172A]">{fmtDate(waybill.createdAt)}</strong></span>
-            <span>Fee: <strong className={Number(waybill.fee) > 0 ? "text-[#16A34A]" : "text-[#94A3B8]"}>{fmtFee(waybill.fee)}</strong></span>
+            <span>Fee: <strong className={Number(waybill.fee) > 0 ? "text-[#16A34A]" : "text-[#64748B]"}>{fmtFee(waybill.fee)}</strong></span>
             {waybill.assignedOperator && (
               <span>Carrier: <strong className="text-[#0F172A]">{waybill.assignedOperator.companyName}</strong></span>
             )}
@@ -281,7 +281,7 @@ function WaybillRow({ waybill, operators, onUpdate }) {
             ))}
             <button
               onClick={() => setExpanded((v) => !v)}
-              className="ml-auto text-xs text-[#94A3B8] flex items-center gap-1 hover:text-[#475569]"
+              className="ml-auto text-xs text-[#64748B] flex items-center gap-1 hover:text-[#475569]"
             >
               {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               {expanded ? "Less" : "Details"}
@@ -292,14 +292,14 @@ function WaybillRow({ waybill, operators, onUpdate }) {
         {/* Expanded: timeline */}
         {expanded && waybill.events?.length > 0 && (
           <div className="border-t border-[#F1F5F9] px-5 py-4 bg-[#F8FAFC] space-y-2">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#94A3B8] mb-3">Timeline</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-[#64748B] mb-3">Timeline</p>
             {waybill.events.map((ev, i) => (
               <div key={ev.id ?? i} className="flex items-start gap-3 text-xs text-[#475569]">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#2563EB] mt-1.5 shrink-0" />
                 <div>
                   <span className="font-semibold text-[#0F172A]">{STATUS_LABEL[ev.status] ?? ev.status}</span>
                   {ev.note && <span className="text-[#64748B]"> — {ev.note}</span>}
-                  {ev.location && <span className="text-[#94A3B8]"> · {ev.location}</span>}
+                  {ev.location && <span className="text-[#64748B]"> · {ev.location}</span>}
                   <span className="text-[#CBD5E1] ml-2">{fmtDate(ev.createdAt)}</span>
                 </div>
               </div>
@@ -403,7 +403,7 @@ export default function AdminWaybillsPage() {
         <div className="text-center py-16">
           <Package size={32} className="text-[#CBD5E1] mx-auto mb-3" />
           <p className="text-[#475569] font-semibold">No waybills found</p>
-          <p className="text-sm text-[#94A3B8]">
+          <p className="text-sm text-[#64748B]">
             {activeTab === "all" ? "No waybill requests yet." : `No waybills with status "${STATUS_LABEL[activeTab] ?? activeTab}".`}
           </p>
         </div>

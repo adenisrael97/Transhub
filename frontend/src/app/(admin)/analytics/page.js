@@ -122,7 +122,7 @@ export default function AnalyticsPage() {
             <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6">
               <h2 className="font-semibold text-[#0F172A] mb-6">Daily Revenue (₦) — last 30 days</h2>
               {revenue.length === 0 ? (
-                <div className="h-40 flex items-center justify-center text-sm text-[#94A3B8]">
+                <div className="h-40 flex items-center justify-center text-sm text-[#64748B]">
                   No confirmed bookings in this period
                 </div>
               ) : (
@@ -134,7 +134,7 @@ export default function AnalyticsPage() {
                         style={{ height: `${(pt.revenue / maxRevenue) * 100}%`, minHeight: "4px" }}
                         title={`${fmtDate(pt.date)}: ₦${pt.revenue.toLocaleString()}`}
                       />
-                      <p className="text-[10px] text-[#94A3B8] rotate-45 origin-left whitespace-nowrap">
+                      <p className="text-[10px] text-[#64748B] rotate-45 origin-left whitespace-nowrap">
                         {fmtDate(pt.date)}
                       </p>
                     </div>
@@ -149,14 +149,14 @@ export default function AnalyticsPage() {
             <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6">
               <h2 className="font-semibold text-[#0F172A] mb-6">Top Routes</h2>
               {routes.length === 0 ? (
-                <div className="text-sm text-[#94A3B8]">No confirmed bookings yet</div>
+                <div className="text-sm text-[#64748B]">No confirmed bookings yet</div>
               ) : (
                 <div className="space-y-4">
                   {routes.map((r) => (
                     <div key={r.route}>
                       <div className="flex items-center justify-between text-sm mb-1.5">
                         <span className="font-medium text-[#475569]">{r.route}</span>
-                        <span className="text-xs text-[#94A3B8]">{r.bookings} bookings</span>
+                        <span className="text-xs text-[#64748B]">{r.bookings} bookings</span>
                       </div>
                       <div className="h-2 bg-[#F1F5F9] rounded-full overflow-hidden">
                         <div

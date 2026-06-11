@@ -168,7 +168,7 @@ function PaymentVerifier({ reference }) {
           This takes a few seconds. Please don&apos;t close this tab.
         </p>
         {attempt >= 1 && (
-          <p className="mt-4 text-xs text-[#94A3B8]">Still checking… ({attempt}/{MAX_POLLS})</p>
+          <p className="mt-4 text-xs text-[#64748B]">Still checking… ({attempt}/{MAX_POLLS})</p>
         )}
       </div>
     </div>
@@ -275,10 +275,10 @@ function CheckoutContent() {
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-[#F1F5F9] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Ticket size={28} className="text-[#94A3B8]" />
+            <Ticket size={28} className="text-[#64748B]" />
           </div>
           <p className="text-lg font-semibold text-[#0F172A] mb-1">No booking in progress</p>
-          <p className="text-sm text-[#94A3B8] mb-4">Select a trip and seats first</p>
+          <p className="text-sm text-[#64748B] mb-4">Select a trip and seats first</p>
           <Button onClick={() => router.push("/search")}>Search Trips</Button>
         </div>
       </div>
@@ -347,8 +347,8 @@ function CheckoutContent() {
                         <span className="text-xs text-[#EF4444] font-medium">(Required)</span>
                       </div>
                       {expandedNok[i]
-                        ? <ChevronUp size={14} className="text-[#94A3B8]" />
-                        : <ChevronDown size={14} className="text-[#94A3B8]" />
+                        ? <ChevronUp size={14} className="text-[#64748B]" />
+                        : <ChevronDown size={14} className="text-[#64748B]" />
                       }
                     </button>
 
@@ -379,7 +379,7 @@ function CheckoutContent() {
                   <div>
                     <label className="block text-sm font-medium text-[#374151] mb-1.5">
                       Special Needs / Accessibility{" "}
-                      <span className="text-[#94A3B8] font-normal">(Optional)</span>
+                      <span className="text-[#64748B] font-normal">(Optional)</span>
                     </label>
                     <textarea
                       value={p.specialNeeds}
@@ -387,9 +387,9 @@ function CheckoutContent() {
                       placeholder="e.g. Requires wheelchair assistance, dietary restrictions, medical needs…"
                       rows={2}
                       maxLength={200}
-                      className="w-full px-3 py-2.5 text-sm border border-[#D1D5DB] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent resize-none text-[#0F172A] placeholder:text-[#94A3B8]"
+                      className="w-full px-3 py-2.5 text-sm border border-[#D1D5DB] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent resize-none text-[#0F172A] placeholder:text-[#64748B]"
                     />
-                    <p className="text-xs text-[#94A3B8] mt-1 text-right">{p.specialNeeds?.length ?? 0}/200</p>
+                    <p className="text-xs text-[#64748B] mt-1 text-right">{p.specialNeeds?.length ?? 0}/200</p>
                   </div>
                 </div>
               </div>
@@ -413,7 +413,7 @@ function CheckoutContent() {
                           : "border-[#E2E8F0] hover:border-[#BFDBFE] hover:bg-[#F8FAFC]"
                       }`}
                     >
-                      <Icon size={22} className={active ? "text-[#2563EB]" : "text-[#94A3B8]"} />
+                      <Icon size={22} className={active ? "text-[#2563EB]" : "text-[#64748B]"} />
                       <span className={`text-xs font-semibold text-center ${active ? "text-[#2563EB]" : "text-[#475569]"}`}>
                         {m.label}
                       </span>
@@ -436,7 +436,7 @@ function CheckoutContent() {
                   ["Price/seat", `₦${selectedTrip.price?.toLocaleString()}`],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between">
-                    <span className="text-[#94A3B8]">{label}</span>
+                    <span className="text-[#64748B]">{label}</span>
                     <span className="font-medium text-[#0F172A] text-right max-w-35 truncate">{value}</span>
                   </div>
                 ))}
@@ -460,7 +460,7 @@ function CheckoutContent() {
               Pay ₦{total.toLocaleString()}
             </Button>
 
-            <div className="flex items-center gap-2 text-xs text-[#94A3B8] justify-center">
+            <div className="flex items-center gap-2 text-xs text-[#64748B] justify-center">
               <ShieldCheck size={13} className="text-[#16A34A]" />
               Secured by Paystack
             </div>

@@ -106,13 +106,13 @@ export default function OperatorDriversPage() {
         {loading && drivers.length === 0 ? (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center">
             <div className="animate-spin w-8 h-8 border-2 border-[#16A34A] border-t-transparent rounded-full mx-auto mb-3" />
-            <p className="text-sm text-[#94A3B8]">Loading drivers…</p>
+            <p className="text-sm text-[#64748B]">Loading drivers…</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#F1F5F9]">
+                <tr className="text-left text-xs text-[#64748B] font-semibold uppercase tracking-wider border-b border-[#F1F5F9]">
                   {["Name", "Phone", "License No.", "Status", "Created"].map((h) => (
                     <th key={h} className="px-6 py-4">{h}</th>
                   ))}
@@ -142,7 +142,7 @@ export default function OperatorDriversPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-[#94A3B8] text-xs">
+                    <td className="px-6 py-4 text-[#64748B] text-xs">
                       {new Date(driver.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
                     </td>
                   </tr>
@@ -153,9 +153,9 @@ export default function OperatorDriversPage() {
             {drivers.length === 0 && !loading && (
               <div className="text-center py-16">
                 <div className="w-12 h-12 bg-[#F1F5F9] rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <User size={24} className="text-[#94A3B8]" />
+                  <User size={24} className="text-[#64748B]" />
                 </div>
-                <p className="text-sm font-medium text-[#94A3B8]">No drivers match your search</p>
+                <p className="text-sm font-medium text-[#64748B]">No drivers match your search</p>
                 <p className="text-xs text-[#CBD5E1] mt-1">Drivers log in with phone + password</p>
               </div>
             )}

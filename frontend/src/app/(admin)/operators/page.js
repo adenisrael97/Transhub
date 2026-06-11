@@ -145,14 +145,14 @@ export default function AdminOperatorsPage() {
         {loading && operators.length === 0 ? (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center">
             <div className="animate-spin w-8 h-8 border-2 border-[#2563EB] border-t-transparent rounded-full mx-auto mb-3" />
-            <p className="text-sm text-[#94A3B8]">Loading operator applications…</p>
+            <p className="text-sm text-[#64748B]">Loading operator applications…</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider">
+                  <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#64748B] font-semibold uppercase tracking-wider">
                     {["Company", "Contact", "City", "Fleet", "Applied", "Status", "Actions"].map((h) => (
                       <th key={h} className="px-6 py-4">{h}</th>
                     ))}
@@ -163,11 +163,11 @@ export default function AdminOperatorsPage() {
                     <tr key={op.id} className="hover:bg-[#F8FAFC] transition-colors">
                       <td className="px-6 py-4">
                         <p className="font-semibold text-[#0F172A]">{op.companyName}</p>
-                        <p className="text-xs text-[#94A3B8] font-mono truncate max-w-35">{op.id}</p>
+                        <p className="text-xs text-[#64748B] font-mono truncate max-w-35">{op.id}</p>
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-[#475569]">{op.contactName}</p>
-                        <p className="text-xs text-[#94A3B8]">{op.email}</p>
+                        <p className="text-xs text-[#64748B]">{op.email}</p>
                       </td>
                       <td className="px-6 py-4 text-[#64748B]">{op.city}</td>
                       <td className="px-6 py-4 text-[#64748B]">{op.fleetSize}</td>
@@ -208,9 +208,9 @@ export default function AdminOperatorsPage() {
             {operators.length === 0 && !loading && (
               <div className="text-center py-16">
                 <div className="w-12 h-12 bg-[#F1F5F9] rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <Building2 size={24} className="text-[#94A3B8]" />
+                  <Building2 size={24} className="text-[#64748B]" />
                 </div>
-                <p className="text-sm font-medium text-[#94A3B8]">No operator requests match your filter</p>
+                <p className="text-sm font-medium text-[#64748B]">No operator requests match your filter</p>
               </div>
             )}
           </div>
@@ -229,7 +229,7 @@ export default function AdminOperatorsPage() {
               "bg-[#FEF2F2] border border-[#FECACA]"
             }`}>
               <div>
-                <p className="text-xs text-[#94A3B8] uppercase tracking-widest font-bold">Status</p>
+                <p className="text-xs text-[#64748B] uppercase tracking-widest font-bold">Status</p>
                 <p className={`text-lg font-bold ${
                   selectedOp.status === "pending"  ? "text-[#D97706]" :
                   selectedOp.status === "approved" ? "text-[#16A34A]" : "text-[#DC2626]"
@@ -263,14 +263,14 @@ export default function AdminOperatorsPage() {
                 ["Reviewed",           selectedOp.reviewedAt ? fmtDate(selectedOp.reviewedAt) : "Not yet reviewed"],
               ].map(([label, value]) => (
                 <div key={label} className="bg-[#F8FAFC] rounded-xl p-3">
-                  <p className="text-xs text-[#94A3B8] mb-0.5">{label}</p>
+                  <p className="text-xs text-[#64748B] mb-0.5">{label}</p>
                   <p className="font-semibold text-sm text-[#0F172A]">{value}</p>
                 </div>
               ))}
             </div>
 
             <div>
-              <p className="text-xs text-[#94A3B8] mb-2">Vehicle Types</p>
+              <p className="text-xs text-[#64748B] mb-2">Vehicle Types</p>
               <div className="flex flex-wrap gap-2">
                 {(selectedOp.vehicleTypes ?? []).map((t) => (
                   <span key={t} className="bg-[#EFF6FF] text-[#2563EB] px-3 py-1 rounded-full text-xs font-semibold">{t}</span>
@@ -279,13 +279,13 @@ export default function AdminOperatorsPage() {
             </div>
 
             <div>
-              <p className="text-xs text-[#94A3B8] mb-1">Preferred Routes</p>
+              <p className="text-xs text-[#64748B] mb-1">Preferred Routes</p>
               <p className="text-sm text-[#475569]">{selectedOp.routes}</p>
             </div>
 
             {selectedOp.additionalInfo && (
               <div>
-                <p className="text-xs text-[#94A3B8] mb-1">Additional Information</p>
+                <p className="text-xs text-[#64748B] mb-1">Additional Information</p>
                 <p className="text-sm text-[#475569] leading-relaxed">{selectedOp.additionalInfo}</p>
               </div>
             )}

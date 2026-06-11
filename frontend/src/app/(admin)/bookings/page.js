@@ -68,19 +68,19 @@ export default function AdminBookingsPage() {
         {showFilters && (
           <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">From date</span>
+              <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">From date</span>
               <input type="date" value={filters.dateFrom ?? ""} onChange={(e) => setFilter({ dateFrom: e.target.value || undefined })} className={fieldClass} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">To date</span>
+              <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">To date</span>
               <input type="date" value={filters.dateTo ?? ""} onChange={(e) => setFilter({ dateTo: e.target.value || undefined })} className={fieldClass} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Min ₦</span>
+              <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Min ₦</span>
               <input type="number" min="0" value={filters.minAmount ?? ""} onChange={(e) => setFilter({ minAmount: e.target.value || undefined })} className={fieldClass} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Max ₦</span>
+              <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Max ₦</span>
               <input type="number" min="0" value={filters.maxAmount ?? ""} onChange={(e) => setFilter({ maxAmount: e.target.value || undefined })} className={fieldClass} />
             </label>
           </div>
@@ -88,12 +88,12 @@ export default function AdminBookingsPage() {
 
         <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
           {loading ? (
-            <div className="py-16 flex flex-col items-center gap-3 text-[#94A3B8]">
+            <div className="py-16 flex flex-col items-center gap-3 text-[#64748B]">
               <Loader2 size={24} className="animate-spin" />
               <p className="text-sm">Loading bookings…</p>
             </div>
           ) : bookings.length === 0 ? (
-            <div className="py-16 text-center text-[#94A3B8] text-sm flex flex-col items-center gap-2">
+            <div className="py-16 text-center text-[#64748B] text-sm flex flex-col items-center gap-2">
               <X size={22} />
               No bookings match your filters
             </div>
@@ -101,7 +101,7 @@ export default function AdminBookingsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider">
+                  <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#64748B] font-semibold uppercase tracking-wider">
                     {["Booking ID", "Route", "Payment Ref", "Seats", "Amount", "Date", "Status"].map((h) => (
                       <th key={h} className="px-6 py-4">{h}</th>
                     ))}
@@ -110,7 +110,7 @@ export default function AdminBookingsPage() {
                 <tbody className="divide-y divide-[#F1F5F9]">
                   {bookings.map((b) => (
                     <tr key={b.id} className="hover:bg-[#F8FAFC] transition-colors">
-                      <td className="px-6 py-4 font-mono text-xs text-[#94A3B8]">{b.id.slice(0, 8)}…</td>
+                      <td className="px-6 py-4 font-mono text-xs text-[#64748B]">{b.id.slice(0, 8)}…</td>
                       <td className="px-6 py-4 text-[#475569] text-xs">{b.trip ? `${b.trip.from} → ${b.trip.to}` : "—"}</td>
                       <td className="px-6 py-4 font-mono text-xs text-[#64748B]">{b.paymentRef ?? "—"}</td>
                       <td className="px-6 py-4 font-medium text-[#475569]">{b.seats.map((s) => s.label).join(", ") || "—"}</td>

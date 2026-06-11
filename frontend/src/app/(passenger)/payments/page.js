@@ -64,14 +64,14 @@ function PaymentsContent() {
         </div>
 
         {loading ? (
-          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center text-[#94A3B8]">
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center text-[#64748B]">
             <Loader2 size={24} className="animate-spin mx-auto mb-2" /> Loading…
           </div>
         ) : txns.length === 0 ? (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center">
             <Receipt size={28} className="mx-auto text-[#CBD5E1] mb-3" />
             <p className="text-[#475569] font-semibold">No payments found</p>
-            <p className="text-sm text-[#94A3B8]">Your trip, charter and shipment payments will appear here.</p>
+            <p className="text-sm text-[#64748B]">Your trip, charter and shipment payments will appear here.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -85,7 +85,7 @@ function PaymentsContent() {
                     </span>
                   </div>
                   <p className="text-sm font-medium text-[#0F172A] truncate">{t.description}</p>
-                  <p className="text-xs text-[#94A3B8] font-mono truncate">REF: {t.reference} · {fmtDate(t.createdAt)}</p>
+                  <p className="text-xs text-[#64748B] font-mono truncate">REF: {t.reference} · {fmtDate(t.createdAt)}</p>
                 </div>
                 <p className="text-lg font-bold text-[#2563EB] shrink-0">₦{Number(t.amount).toLocaleString()}</p>
               </div>

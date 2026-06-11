@@ -87,14 +87,14 @@ export default function OperatorWaybillsPage() {
         </div>
 
         {loading && waybills.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center text-[#94A3B8]">
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center text-[#64748B]">
             <Loader2 size={24} className="animate-spin mx-auto mb-2" /> Loading…
           </div>
         ) : waybills.length === 0 ? (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center">
             <Package size={32} className="mx-auto text-[#CBD5E1] mb-3" />
             <p className="text-[#475569] font-semibold">No waybills found</p>
-            <p className="text-sm text-[#94A3B8]">Nothing matches your filters.</p>
+            <p className="text-sm text-[#64748B]">Nothing matches your filters.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -111,9 +111,9 @@ export default function OperatorWaybillsPage() {
                         </span>
                       </div>
                       <p className="text-sm text-[#475569] flex items-center gap-1.5">
-                        {w.fromLocation} <ArrowRight size={12} className="text-[#94A3B8]" /> {w.toLocation}
+                        {w.fromLocation} <ArrowRight size={12} className="text-[#64748B]" /> {w.toLocation}
                       </p>
-                      <p className="text-xs text-[#94A3B8] mt-1">
+                      <p className="text-xs text-[#64748B] mt-1">
                         {w.senderName} → {w.recipientName} · {w.description}
                       </p>
                     </div>

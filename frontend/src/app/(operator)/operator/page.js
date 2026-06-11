@@ -28,10 +28,10 @@ const REVENUE = [1200, 1450, 1800, 1550, 1900, 2400];
 const maxRev  = Math.max(...REVENUE);
 
 const STATUS_COLOR = {
-  "in-transit": "bg-[#EFF6FF] text-[#2563EB]",
-  boarding:     "bg-[#FFFBEB] text-[#D97706]",
-  scheduled:    "bg-[#F1F5F9] text-[#64748B]",
-  completed:    "bg-[#F1F5F9] text-[#94A3B8]",
+  "in-transit": "bg-[#EFF6FF] text-[#1D4ED8]",
+  boarding:     "bg-[#FFFBEB] text-[#B45309]",
+  scheduled:    "bg-[#F1F5F9] text-[#475569]",
+  completed:    "bg-[#F1F5F9] text-[#475569]",
 };
 
 function fmtCurrency(n) {
@@ -98,7 +98,7 @@ export default function OperatorDashboardPage() {
             <h1 className="text-2xl font-bold text-[#0F172A]">Operator Dashboard</h1>
             <p className="text-sm text-[#64748B] mt-0.5 flex items-center gap-2">
               Last 30 days
-              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#F0FDF4] text-[#16A34A]">
+              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#F0FDF4] text-[#15803D]">
                 {capitalize("approved")}
               </span>
             </p>
@@ -125,42 +125,51 @@ export default function OperatorDashboardPage() {
 
         <div className="grid lg:grid-cols-3 gap-6 mb-6">
           {/* Revenue chart */}
-          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6">
-            <h2 className="font-semibold text-[#0F172A] mb-5">Revenue (₦&apos;000)</h2>
-            <div className="flex items-end gap-2 h-32">
-              {REVENUE.map((val, i) => (
-                <div key={MONTHS[i]} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full bg-[#16A34A] rounded-t-md transition-all" style={{ height: `${(val / maxRev) * 100}%`, minHeight: "4px" }} />
-                  <p className="text-xs text-[#94A3B8]">{MONTHS[i]}</p>
-                </div>
-              ))}
+          <div className="th-card p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-semibold text-[#0F172A]">Revenue</h2>
+              <span className="text-[11px] font-semibold text-[#475569] bg-[#F1F5F9] px-2 py-1 rounded-lg">₦&apos;000</span>
+            </div>
+            <div className="flex items-stretch gap-2.5 h-40">
+              {REVENUE.map((val, i) => {
+                const pct = Math.round((val / maxRev) * 100);
+                return (
+                  <div key={MONTHS[i]} className="flex-1 flex flex-col items-center gap-2 group">
+                    <span className="text-[10px] font-bold text-[#0F172A] tabular-nums opacity-0 group-hover:opacity-100 transition-opacity">{val}</span>
+                    <div className="relative w-full flex-1 bg-[#F1F5F9] rounded-lg flex items-end overflow-hidden">
+                      <div className="w-full bg-linear-to-t from-[#15803D] to-[#22C55E] rounded-lg transition-all" style={{ height: `${Math.max(pct, 3)}%` }} />
+                    </div>
+                    <p className="text-xs font-medium text-[#64748B]">{MONTHS[i]}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           {/* Today's trips */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E2E8F0]">
+          <div className="lg:col-span-2 th-card overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#F1F5F9]">
               <h2 className="font-semibold text-[#0F172A]">Today&apos;s Trips</h2>
-              <Link href="/operator/trips" className="text-xs text-[#16A34A] font-semibold hover:underline">View all</Link>
+              <Link href="/operator/trips" className="text-xs text-[#15803D] font-semibold hover:underline">View all →</Link>
             </div>
             <div className="divide-y divide-[#F1F5F9]">
               {TRIPS_TODAY.map((trip) => {
                 const fillPct = Math.round((trip.booked / trip.seats) * 100);
                 return (
-                  <div key={trip.id} className="px-6 py-4">
-                    <div className="flex items-center justify-between mb-2">
+                  <div key={trip.id} className="px-6 py-4 hover:bg-[#F8FAFC] transition-colors">
+                    <div className="flex items-center justify-between mb-2.5">
                       <div>
                         <p className="font-semibold text-sm text-[#0F172A]">{trip.route}</p>
-                        <p className="text-xs text-[#94A3B8]">{trip.id} · Departs {trip.dep}</p>
+                        <p className="text-xs text-[#64748B]">{trip.id} · Departs {trip.dep}</p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[trip.status]}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_COLOR[trip.status]}`}>
                           {trip.status === "in-transit" ? "In Transit" : capitalize(trip.status)}
                         </span>
-                        <span className="text-sm font-bold text-[#16A34A]">{trip.booked}/{trip.seats}</span>
+                        <span className="text-sm font-bold text-[#0F172A] tabular-nums">{trip.booked}/{trip.seats}</span>
                       </div>
                     </div>
-                    <div className="h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
+                    <div className="h-2 bg-[#F1F5F9] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${fillPct >= 90 ? "bg-[#DC2626]" : fillPct >= 60 ? "bg-[#D97706]" : "bg-[#16A34A]"}`}
                         style={{ width: `${fillPct}%` }}
@@ -174,28 +183,28 @@ export default function OperatorDashboardPage() {
         </div>
 
         {/* Recent bookings */}
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
+        <div className="th-card overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#F1F5F9]">
             <h2 className="font-semibold text-[#0F172A]">Recent Bookings</h2>
-            <Link href="/operator/bookings" className="text-xs text-[#16A34A] font-semibold hover:underline">View all</Link>
+            <Link href="/operator/bookings" className="text-xs text-[#15803D] font-semibold hover:underline">View all →</Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#F1F5F9]">
+                <tr className="text-left text-xs text-[#64748B] font-bold uppercase tracking-wider border-b border-[#F1F5F9] bg-[#F8FAFC]">
                   {["ID", "Passenger", "Route", "Amount", "Time"].map((h) => (
-                    <th key={h} className="px-6 py-3">{h}</th>
+                    <th key={h} className="px-6 py-3.5">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F1F5F9]">
                 {RECENT_BOOKINGS.map((b) => (
                   <tr key={b.id} className="hover:bg-[#F8FAFC] transition-colors">
-                    <td className="px-6 py-4 font-mono text-xs text-[#94A3B8]">{b.id}</td>
+                    <td className="px-6 py-4 font-mono text-xs text-[#64748B]">{b.id}</td>
                     <td className="px-6 py-4 font-semibold text-[#0F172A]">{b.passenger}</td>
-                    <td className="px-6 py-4 text-[#64748B]">{b.route}</td>
-                    <td className="px-6 py-4 font-semibold text-[#16A34A]">₦{b.amount.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-xs text-[#94A3B8]">{b.time}</td>
+                    <td className="px-6 py-4 text-[#475569]">{b.route}</td>
+                    <td className="px-6 py-4 font-bold text-[#0F172A] tabular-nums">₦{b.amount.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-xs text-[#64748B]">{b.time}</td>
                   </tr>
                 ))}
               </tbody>
@@ -206,9 +215,9 @@ export default function OperatorDashboardPage() {
         {/* Quick actions */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
           {[
-            { label: "Add Trip",      Icon: Plus,    href: "/operator/trips",    cls: "bg-[#F0FDF4] text-[#16A34A] hover:bg-[#DCFCE7]" },
-            { label: "View Bookings", Icon: Ticket,  href: "/operator/bookings", cls: "bg-[#EFF6FF] text-[#2563EB] hover:bg-[#DBEAFE]" },
-            { label: "Manage Fleet",  Icon: Bus,     href: "/operator/fleet",    cls: "bg-[#FFFBEB] text-[#D97706] hover:bg-[#FEF3C7]" },
+            { label: "Add Trip",      Icon: Plus,    href: "/operator/trips",    cls: "bg-[#F0FDF4] text-[#15803D] hover:bg-[#DCFCE7]" },
+            { label: "View Bookings", Icon: Ticket,  href: "/operator/bookings", cls: "bg-[#EFF6FF] text-[#1D4ED8] hover:bg-[#DBEAFE]" },
+            { label: "Manage Fleet",  Icon: Bus,     href: "/operator/fleet",    cls: "bg-[#FFFBEB] text-[#B45309] hover:bg-[#FEF3C7]" },
             { label: "Edit Profile",  Icon: Settings, href: "/operator/profile",  cls: "bg-[#F1F5F9] text-[#475569] hover:bg-[#E2E8F0]" },
           ].map(({ label, Icon, href, cls }) => (
             <Link key={label} href={href} className={`flex items-center gap-2.5 px-4 py-3 rounded-xl font-semibold text-sm transition-colors ${cls}`}>

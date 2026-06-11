@@ -62,7 +62,7 @@ function WaybillCard({ waybill, onPay, paying }) {
       {/* Header row */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <p className="text-xs text-[#94A3B8] uppercase tracking-wide font-medium mb-0.5">Waybill</p>
+          <p className="text-xs text-[#64748B] uppercase tracking-wide font-medium mb-0.5">Waybill</p>
           <p className="text-lg font-bold text-[#0F172A] font-mono">{waybill.waybillNo}</p>
         </div>
         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badgeClass}`}>
@@ -73,7 +73,7 @@ function WaybillCard({ waybill, onPay, paying }) {
       {/* Route */}
       <div className="flex items-center gap-2 text-sm text-[#475569]">
         <span className="font-semibold text-[#0F172A]">{waybill.fromLocation}</span>
-        <ArrowRight size={13} className="text-[#94A3B8] shrink-0" />
+        <ArrowRight size={13} className="text-[#64748B] shrink-0" />
         <span className="font-semibold text-[#0F172A]">{waybill.toLocation}</span>
       </div>
 
@@ -149,7 +149,7 @@ export default function MyShipmentsPage() {
             <Truck size={11} /> My Shipments
           </span>
           <h1 className="text-2xl font-bold text-white mb-1">My Shipments</h1>
-          <p className="text-sm text-[#94A3B8]">Track all your sent parcels and accept quotes.</p>
+          <p className="text-sm text-[#64748B]">Track all your sent parcels and accept quotes.</p>
         </div>
       </div>
 
@@ -200,7 +200,7 @@ export default function MyShipmentsPage() {
               <PackageX size={28} className="text-[#2563EB]" />
             </div>
             <p className="text-lg font-semibold text-[#0F172A]">No shipments yet</p>
-            <p className="text-sm text-[#94A3B8] mt-1 mb-5">Start by submitting a waybill request.</p>
+            <p className="text-sm text-[#64748B] mt-1 mb-5">Start by submitting a waybill request.</p>
             <Button as={Link} href="/send">Send Goods</Button>
           </div>
         )}

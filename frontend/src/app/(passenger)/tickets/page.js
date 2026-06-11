@@ -63,7 +63,7 @@ function TicketsContent() {
         ) : error ? (
           <div className="text-center py-20">
             <p className="text-lg font-semibold text-[#0F172A]">{error}</p>
-            <p className="text-sm text-[#94A3B8] mt-1">Please try again in a moment.</p>
+            <p className="text-sm text-[#64748B] mt-1">Please try again in a moment.</p>
           </div>
         ) : tickets.length === 0 ? (
           <div className="text-center py-20">
@@ -71,7 +71,7 @@ function TicketsContent() {
               <Ticket size={28} className="text-[#2563EB]" />
             </div>
             <p className="text-lg font-semibold text-[#0F172A]">You have no tickets yet.</p>
-            <p className="text-sm text-[#94A3B8] mt-1 mb-6">Book a trip to see your tickets here.</p>
+            <p className="text-sm text-[#64748B] mt-1 mb-6">Book a trip to see your tickets here.</p>
             <Button as={Link} href="/search">Search Trips</Button>
           </div>
         ) : (
@@ -87,7 +87,7 @@ function TicketsContent() {
                 <div className="px-6 py-5">
                   <div className="flex items-start justify-between gap-4 mb-3">
                     <h2 className="text-xl font-bold text-[#0F172A]">
-                      {t.from} <span className="text-[#94A3B8] font-normal">→</span> {t.to}
+                      {t.from} <span className="text-[#64748B] font-normal">→</span> {t.to}
                     </h2>
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_BADGE[t.status] ?? ""}`}>
                       {capitalize(t.status)}
@@ -99,14 +99,14 @@ function TicketsContent() {
                   </p>
 
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm border-t border-dashed border-[#E2E8F0] pt-4">
-                    <span className="flex items-center gap-1.5 text-[#94A3B8]">
+                    <span className="flex items-center gap-1.5 text-[#64748B]">
                       <MapPin size={13} /> Seats
                       <strong className="text-[#0F172A]">{t.seatCount} (open seating)</strong>
                     </span>
-                    <span className="text-[#94A3B8]">
+                    <span className="text-[#64748B]">
                       Amount paid <strong className="text-[#16A34A]">₦{t.totalAmount.toLocaleString()}</strong>
                     </span>
-                    <span className="text-xs text-[#94A3B8] font-mono">REF: {shortRef(t.paymentRef)}</span>
+                    <span className="text-xs text-[#64748B] font-mono">REF: {shortRef(t.paymentRef)}</span>
                   </div>
                 </div>
 

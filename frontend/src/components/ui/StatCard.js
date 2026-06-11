@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const VARIANT_STYLES = {
-  blue:  { pill: 'bg-blue-50',   icon: 'text-blue-600',   val: 'text-blue-600'   },
-  green: { pill: 'bg-green-50',  icon: 'text-green-600',  val: 'text-green-600'  },
-  amber: { pill: 'bg-amber-50',  icon: 'text-amber-600',  val: 'text-amber-600'  },
-  red:   { pill: 'bg-red-50',    icon: 'text-red-600',    val: 'text-red-600'    },
+// Map the value-size prop to a real, literal class so Tailwind v4's JIT keeps it
+// (a constructed `text-${size}` string would get tree-shaken away).
+const VALUE_SIZE = {
+  lg:   'text-2xl',
+  xl:   'text-[1.75rem]',
+  '2xl':'text-3xl',
+  '3xl':'text-4xl',
 };
 
 export default function StatCard({
@@ -24,45 +26,50 @@ export default function StatCard({
 }) {
   const isUp = change && (change.startsWith('+') || (!change.startsWith('-') && parseFloat(change) > 0));
   const isDown = change && change.startsWith('-');
+  const valueCls = VALUE_SIZE[valueSize] ?? VALUE_SIZE['2xl'];
 
   const inner = (
     <>
-      <div className={`w-11 h-11 ${bg} rounded-full flex items-center justify-center mb-3 shrink-0`}>
-        {typeof icon === 'string' ? (
-          <span className="text-xl">{icon}</span>
-        ) : icon ? (
-          <span className={color}>{icon}</span>
-        ) : null}
+      <div className="flex items-start justify-between gap-3 mb-3.5">
+        <div className={`w-11 h-11 ${bg} rounded-xl flex items-center justify-center shrink-0 ring-1 ring-inset ring-black/[0.04]`}>
+          {typeof icon === 'string' ? (
+            <span className="text-xl">{icon}</span>
+          ) : icon ? (
+            <span className={color}>{icon}</span>
+          ) : null}
+        </div>
+        {change && (
+          <span className={`inline-flex items-center gap-0.5 text-xs font-bold px-2 py-1 rounded-lg ${
+            isUp ? 'text-[#16A34A] bg-[#F0FDF4]' : isDown ? 'text-[#DC2626] bg-[#FEF2F2]' : 'text-[#64748B] bg-[#F1F5F9]'
+          }`}>
+            {isUp && <TrendingUp size={12} />}
+            {isDown && <TrendingDown size={12} />}
+            {change}
+          </span>
+        )}
       </div>
-      <p className={`text-${valueSize} font-bold ${color} leading-none`}>{value}</p>
-      <p className="text-xs text-[#94A3B8] mt-1 leading-tight">{label}</p>
-      {change && (
-        <p className={`text-xs font-semibold mt-1 flex items-center gap-0.5 ${isUp ? 'text-[#16A34A]' : isDown ? 'text-[#DC2626]' : 'text-[#94A3B8]'}`}>
-          {isUp && <TrendingUp size={11} />}
-          {isDown && <TrendingDown size={11} />}
-          {change}
-        </p>
-      )}
+      <p className={`${valueCls} font-extrabold text-[#0F172A] leading-none tracking-tight tabular-nums`}>{value}</p>
+      <p className="text-[13px] font-medium text-[#64748B] mt-1.5 leading-tight">{label}</p>
     </>
   );
 
-  const cls = `bg-white rounded-2xl border border-[#E2E8F0] p-5`;
+  const base = 'th-card p-5';
 
   if (href) {
     return (
-      <motion.div whileHover={{ y: -2 }} transition={{ type: 'spring', stiffness: 300 }}>
-        <Link href={href} className={`${cls} block hover:shadow-md transition-shadow`}>{inner}</Link>
+      <motion.div whileHover={{ y: -3 }} transition={{ type: 'spring', stiffness: 300 }}>
+        <Link href={href} className={`${base} th-card-hover block`}>{inner}</Link>
       </motion.div>
     );
   }
 
   if (hover) {
     return (
-      <motion.div whileHover={{ y: -2 }} transition={{ type: 'spring', stiffness: 300 }} className={`${cls} hover:shadow-md transition-shadow`}>
+      <motion.div whileHover={{ y: -3 }} transition={{ type: 'spring', stiffness: 300 }} className={`${base} th-card-hover`}>
         {inner}
       </motion.div>
     );
   }
 
-  return <div className={cls}>{inner}</div>;
+  return <div className={base}>{inner}</div>;
 }

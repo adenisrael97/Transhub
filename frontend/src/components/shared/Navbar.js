@@ -7,8 +7,7 @@ import {
   Bus, Menu, X, LogOut, LayoutDashboard, ChevronDown, User, Settings, Ticket
 } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
-
-const HIDDEN_PREFIXES = ['/admin', '/operator', '/manage-trips', '/bookings', '/operators', '/analytics'];
+import { CHROME_HIDDEN_PREFIXES } from '@/lib/constants';
 
 const NAV_LINKS = [
   { href: '/about',        label: 'About' },
@@ -51,7 +50,7 @@ export default function Navbar() {
     };
   }, [userMenuOpen]);
 
-  if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
+  if (CHROME_HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
 
   const displayName = user?.fullName ?? user?.email ?? 'Account';
 

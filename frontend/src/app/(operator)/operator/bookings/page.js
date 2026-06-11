@@ -74,14 +74,14 @@ export default function OperatorBookingsPage() {
         {loading && bookings.length === 0 ? (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center">
             <div className="animate-spin w-8 h-8 border-2 border-[#16A34A] border-t-transparent rounded-full mx-auto mb-3" />
-            <p className="text-sm text-[#94A3B8]">Loading bookings…</p>
+            <p className="text-sm text-[#64748B]">Loading bookings…</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#F1F5F9]">
+                  <tr className="text-left text-xs text-[#64748B] font-semibold uppercase tracking-wider border-b border-[#F1F5F9]">
                     {["Booking ID", "Passengers", "Route", "Departure", "Seats", "Amount", "Status", ""].map((h) => (
                       <th key={h} className="px-5 py-4">{h}</th>
                     ))}
@@ -96,7 +96,7 @@ export default function OperatorBookingsPage() {
                     return (
                       <React.Fragment key={b.id}>
                         <tr className={`hover:bg-[#F8FAFC] transition-colors ${isExpanded ? "bg-[#F8FAFC]" : ""}`}>
-                          <td className="px-5 py-4 font-mono text-xs text-[#94A3B8]">{b.id.slice(0, 8)}…</td>
+                          <td className="px-5 py-4 font-mono text-xs text-[#64748B]">{b.id.slice(0, 8)}…</td>
                           <td className="px-5 py-4">
                             {firstPax ? (
                               <>
@@ -105,11 +105,11 @@ export default function OperatorBookingsPage() {
                                   <Phone size={10} /> {firstPax.phone}
                                 </a>
                                 {extraCount > 0 && (
-                                  <p className="text-xs text-[#94A3B8]">+{extraCount} more passenger{extraCount !== 1 ? "s" : ""}</p>
+                                  <p className="text-xs text-[#64748B]">+{extraCount} more passenger{extraCount !== 1 ? "s" : ""}</p>
                                 )}
                               </>
                             ) : (
-                              <span className="text-xs text-[#94A3B8]">—</span>
+                              <span className="text-xs text-[#64748B]">—</span>
                             )}
                           </td>
                           <td className="px-5 py-4 text-[#64748B]">{b.trip ? `${b.trip.from} → ${b.trip.to}` : "—"}</td>
@@ -145,15 +145,15 @@ export default function OperatorBookingsPage() {
                                   {b.passengers.map((pax, idx) => (
                                     <div key={pax.id ?? idx} className="px-4 py-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                       <div>
-                                        <p className="text-xs font-semibold text-[#94A3B8] mb-0.5">Passenger {idx + 1}</p>
+                                        <p className="text-xs font-semibold text-[#64748B] mb-0.5">Passenger {idx + 1}</p>
                                         <p className="font-semibold text-sm text-[#0F172A]">{pax.fullName}</p>
                                         <a href={`tel:${pax.phone}`} className="text-xs text-[#2563EB] hover:underline flex items-center gap-1">
                                           <Phone size={10} /> {pax.phone}
                                         </a>
-                                        {pax.email && <p className="text-xs text-[#94A3B8] mt-0.5">{pax.email}</p>}
+                                        {pax.email && <p className="text-xs text-[#64748B] mt-0.5">{pax.email}</p>}
                                       </div>
                                       <div>
-                                        <p className="text-xs font-semibold text-[#94A3B8] mb-0.5 flex items-center gap-1">
+                                        <p className="text-xs font-semibold text-[#64748B] mb-0.5 flex items-center gap-1">
                                           <Heart size={10} className="text-[#EF4444]" /> Next of Kin
                                         </p>
                                         <p className="font-semibold text-sm text-[#0F172A]">{pax.nextOfKinName}</p>
@@ -162,7 +162,7 @@ export default function OperatorBookingsPage() {
                                         </a>
                                       </div>
                                       <div className="sm:col-span-2">
-                                        <p className="text-xs font-semibold text-[#94A3B8] mb-0.5">Special Needs</p>
+                                        <p className="text-xs font-semibold text-[#64748B] mb-0.5">Special Needs</p>
                                         {pax.specialNeeds ? (
                                           <p className="text-sm text-[#475569] bg-[#FEF9C3] border border-[#FDE68A] rounded-lg px-3 py-1.5">{pax.specialNeeds}</p>
                                         ) : (
@@ -186,9 +186,9 @@ export default function OperatorBookingsPage() {
             {bookings.length === 0 && !loading && (
               <div className="text-center py-16">
                 <div className="w-12 h-12 bg-[#F1F5F9] rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <Ticket size={24} className="text-[#94A3B8]" />
+                  <Ticket size={24} className="text-[#64748B]" />
                 </div>
-                <p className="text-sm font-medium text-[#94A3B8]">No bookings match your search</p>
+                <p className="text-sm font-medium text-[#64748B]">No bookings match your search</p>
               </div>
             )}
           </div>

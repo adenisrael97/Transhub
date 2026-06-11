@@ -8,7 +8,7 @@ import { getMyOperatorProfile, updateMyOperatorProfile } from "@/services/operat
 function ProfileField({ label, value, onChange, type = "text", editing, disabled }) {
   return (
     <div>
-      <label className="block text-xs text-[#94A3B8] mb-1">{label}</label>
+      <label className="block text-xs text-[#64748B] mb-1">{label}</label>
       <input
         type={type}
         value={value ?? ""}
@@ -155,7 +155,7 @@ export default function OperatorProfilePage() {
             <div className="grid sm:grid-cols-2 gap-4">
               {f("Fleet Size", "fleetSize")}
               <div>
-                <label className="block text-xs text-[#94A3B8] mb-1">Vehicle Types</label>
+                <label className="block text-xs text-[#64748B] mb-1">Vehicle Types</label>
                 <div className="flex flex-wrap gap-2 py-2">
                   {profile.vehicleTypes?.map((t) => (
                     <span key={t} className="bg-[#F0FDF4] text-[#16A34A] px-3 py-1 rounded-full text-xs font-semibold">{t}</span>

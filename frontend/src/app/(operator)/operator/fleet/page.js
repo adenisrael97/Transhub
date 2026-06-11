@@ -15,7 +15,7 @@ const TYPE_TABS = ["all", "bus", "minibus", "coaster", "van"];
 
 const STATUS_COLOR = {
   true:  "bg-[#F0FDF4] text-[#16A34A]",
-  false: "bg-[#F1F5F9] text-[#94A3B8]",
+  false: "bg-[#F1F5F9] text-[#64748B]",
 };
 
 const EMPTY_FORM = { plate: "", make: "", model: "", capacity: "", type: "bus" };
@@ -149,7 +149,7 @@ export default function OperatorFleetPage() {
             ))}
           </div>
         ) : vehicles.length === 0 ? (
-          <div className="text-center py-20 text-[#94A3B8]">
+          <div className="text-center py-20 text-[#64748B]">
             <Bus size={40} className="mx-auto mb-3 opacity-40" />
             <p className="font-medium">No vehicles found</p>
             <p className="text-sm mt-1">Add your first vehicle or adjust your search</p>
@@ -162,7 +162,7 @@ export default function OperatorFleetPage() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="font-bold text-[#0F172A]">{v.make} {v.model}</p>
-                    <p className="text-xs text-[#94A3B8] font-mono">{v.plate}</p>
+                    <p className="text-xs text-[#64748B] font-mono">{v.plate}</p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_COLOR[String(v.active)]}`}>
@@ -190,7 +190,7 @@ export default function OperatorFleetPage() {
                     ["Capacity", `${v.capacity} seats`],
                   ].map(([label, val]) => (
                     <div key={label} className="flex justify-between">
-                      <span className="text-[#94A3B8]">{label}</span>
+                      <span className="text-[#64748B]">{label}</span>
                       <span className="font-medium text-[#475569]">{val}</span>
                     </div>
                   ))}
@@ -211,7 +211,7 @@ export default function OperatorFleetPage() {
               <h2 className="font-bold text-lg text-[#0F172A]">
                 {editTarget ? "Edit Vehicle" : "Add Vehicle"}
               </h2>
-              <button onClick={closeModal} className="text-[#94A3B8] hover:text-[#475569]">
+              <button onClick={closeModal} className="text-[#64748B] hover:text-[#475569]">
                 <X size={20} />
               </button>
             </div>

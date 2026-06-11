@@ -20,10 +20,12 @@
   --border-default:   #E2E8F0;
   --border-focus:     #2563EB;
 
-  /* Text */
+  /* Text — muted is WCAG-AA compliant (4.76:1 on white); faint is for
+     decorative/disabled glyphs only, never load-bearing copy. */
   --text-primary:     #0F172A;
   --text-secondary:   #475569;
-  --text-muted:       #94A3B8;
+  --text-muted:       #64748B;
+  --text-faint:       #94A3B8;
 
   /* Semantic */
   --success:          #16A34A;
@@ -38,6 +40,8 @@
 
   /* Shadows */
   --shadow-brand:     0 8px 24px rgba(37,99,235,.25);
+  --shadow-card:      0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+  --shadow-card-hover:0 8px 24px -6px rgba(15,23,42,.12), 0 2px 6px rgba(15,23,42,.06);
 
   /* shadcn theme (slate base) */
   --background: oklch(1 0 0);
@@ -161,6 +165,26 @@
   --color-text-primary:    var(--text-primary);
   --color-text-secondary:  var(--text-secondary);
   --color-text-muted:      var(--text-muted);
+  --color-text-faint:      var(--text-faint);
+  --shadow-card:           var(--shadow-card);
+  --shadow-card-hover:     var(--shadow-card-hover);
+}
+
+/* ── Dashboard surface helpers ──────────────────────────────
+   Reusable card elevation so every dashboard panel reads as a real,
+   slightly-raised surface instead of a flat outlined box. */
+.th-card {
+  background: #fff;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.th-card-hover {
+  transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+}
+.th-card-hover:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: #CBD5E1;
 }
 
 /* ── Toast slide-in animation ──────────────────────────── */
@@ -215,6 +239,9 @@
 /* Hide scrollbar on horizontal scroll-snap carousels (visual only). */
 .th-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .th-no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Respect the iOS home-indicator inset on fixed bottom navigation bars. */
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
 /* Print: strip chrome so only the ticket card prints cleanly. */
 @media print {

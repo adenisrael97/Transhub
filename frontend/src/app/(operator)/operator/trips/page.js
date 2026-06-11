@@ -204,14 +204,14 @@ export default function OperatorTripsPage() {
         {loading && trips.length === 0 ? (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] p-16 text-center">
             <div className="animate-spin w-8 h-8 border-2 border-[#16A34A] border-t-transparent rounded-full mx-auto mb-3" />
-            <p className="text-sm text-[#94A3B8]">Loading trips…</p>
+            <p className="text-sm text-[#64748B]">Loading trips…</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#F1F5F9]">
+                  <tr className="text-left text-xs text-[#64748B] font-semibold uppercase tracking-wider border-b border-[#F1F5F9]">
                     {["Route", "Departure", "Price", "Seats", "Status", "Availability", "Capacity", "Actions"].map((h) => (
                       <th key={h} className="px-6 py-4">{h}</th>
                     ))}
@@ -225,13 +225,13 @@ export default function OperatorTripsPage() {
                       <tr key={trip.id} className="hover:bg-[#F8FAFC] transition-colors">
                         <td className="px-6 py-4">
                           <p className="font-semibold text-[#0F172A]">{trip.from} → {trip.to}</p>
-                          <p className="text-xs text-[#94A3B8]">{trip.vehicleType}</p>
+                          <p className="text-xs text-[#64748B]">{trip.vehicleType}</p>
                         </td>
                         <td className="px-6 py-4 text-[#64748B] text-sm">{formatTime(trip.departureTime)}</td>
                         <td className="px-6 py-4 font-semibold text-[#16A34A]">₦{trip.price.toLocaleString()}</td>
                         <td className="px-6 py-4">
                           <span className="font-semibold text-[#0F172A]">{booked}</span>
-                          <span className="text-[#94A3B8]">/{trip.totalSeats}</span>
+                          <span className="text-[#64748B]">/{trip.totalSeats}</span>
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[status] ?? STATUS_BADGE.scheduled}`}>
@@ -252,7 +252,7 @@ export default function OperatorTripsPage() {
                                 trip.isActive !== false ? "translate-x-4.5" : "translate-x-0.5"
                               }`} />
                             </button>
-                            <span className={`text-xs font-medium ${trip.isActive !== false ? "text-[#16A34A]" : "text-[#94A3B8]"}`}>
+                            <span className={`text-xs font-medium ${trip.isActive !== false ? "text-[#16A34A]" : "text-[#64748B]"}`}>
                               {toggling === trip.id ? "…" : trip.isActive !== false ? "Online" : "Offline"}
                             </span>
                           </div>
@@ -267,7 +267,7 @@ export default function OperatorTripsPage() {
                             )}
                             {/* Offline bookings inline input */}
                             <div className="flex items-center gap-1">
-                              <span className="text-xs text-[#94A3B8]">Walk-ins:</span>
+                              <span className="text-xs text-[#64748B]">Walk-ins:</span>
                               <input
                                 type="number"
                                 min="0"
@@ -321,9 +321,9 @@ export default function OperatorTripsPage() {
             {trips.length === 0 && !loading && (
               <div className="text-center py-16">
                 <div className="w-12 h-12 bg-[#F1F5F9] rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <Bus size={24} className="text-[#94A3B8]" />
+                  <Bus size={24} className="text-[#64748B]" />
                 </div>
-                <p className="text-sm font-medium text-[#94A3B8]">No trips yet — add your first trip above</p>
+                <p className="text-sm font-medium text-[#64748B]">No trips yet — add your first trip above</p>
               </div>
             )}
           </div>
@@ -369,7 +369,7 @@ export default function OperatorTripsPage() {
           {/* Amenities checkbox grid */}
           <div>
             <label className="block text-sm font-medium text-[#374151] mb-2">
-              Bus Amenities <span className="text-[#94A3B8] font-normal">(select all that apply)</span>
+              Bus Amenities <span className="text-[#64748B] font-normal">(select all that apply)</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {BUS_AMENITIES.map((amenity) => {

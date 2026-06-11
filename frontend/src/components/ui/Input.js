@@ -51,7 +51,7 @@ export default function Input({
           aria-describedby={error || hint ? descId : undefined}
           className={[
             'w-full rounded-xl border px-3.5 py-2.5 text-sm text-[#0F172A] bg-white outline-none',
-            'placeholder:text-[#94A3B8] transition-all',
+            'placeholder:text-[#64748B] transition-all',
             'focus:ring-2',
             'disabled:bg-[#F1F5F9] disabled:cursor-not-allowed disabled:text-[#94A3B8]',
             borderClass,
@@ -84,8 +84,8 @@ export default function Input({
         </span>
       </div>
 
-      {error && <p id={descId} className="text-xs text-red-500 flex items-center gap-1">{error}</p>}
-      {hint && !error && <p id={descId} className="text-xs text-[#94A3B8]">{hint}</p>}
+      {error && <p id={descId} className="text-xs text-red-600 flex items-center gap-1">{error}</p>}
+      {hint && !error && <p id={descId} className="text-xs text-[#64748B]">{hint}</p>}
     </div>
   );
 }
@@ -119,8 +119,8 @@ export function Select({ label, error, hint, children, className = '', wrapperCl
       >
         {children}
       </select>
-      {error && <p id={descId} className="text-xs text-red-500">{error}</p>}
-      {hint && !error && <p id={descId} className="text-xs text-[#94A3B8]">{hint}</p>}
+      {error && <p id={descId} className="text-xs text-red-600">{error}</p>}
+      {hint && !error && <p id={descId} className="text-xs text-[#64748B]">{hint}</p>}
     </div>
   );
 }

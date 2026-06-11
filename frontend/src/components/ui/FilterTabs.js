@@ -30,7 +30,7 @@ export default function FilterTabs({
               role="tab"
               aria-selected={isActive}
               onClick={() => onChange(item)}
-              className={`relative px-4 py-2.5 text-xs font-semibold capitalize transition-colors ${isActive ? 'text-[#2563EB]' : 'text-[#94A3B8] hover:text-[#475569]'}`}
+              className={`relative px-4 py-2.5 text-xs font-semibold capitalize transition-colors ${isActive ? 'text-[#2563EB]' : 'text-[#64748B] hover:text-[#0F172A]'}`}
             >
               {lbl}
               {cnt != null && cnt > 0 && (
@@ -69,7 +69,7 @@ export default function FilterTabs({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(item)}
-            className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${isActive ? activePillClass : 'text-[#94A3B8] hover:bg-[#F8FAFC] hover:text-[#475569]'}`}
+            className={`relative px-3.5 py-2 rounded-lg text-xs font-semibold capitalize transition-colors ${isActive ? activePillClass : 'text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
           >
             {isActive && (
               <motion.div

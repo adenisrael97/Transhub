@@ -85,19 +85,19 @@ export default function AdminTransactionsPage() {
         {showFilters && (
           <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">From date</span>
+              <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">From date</span>
               <input type="date" value={filters.dateFrom ?? ""} onChange={(e) => setFilter({ dateFrom: e.target.value || undefined })} className={fieldClass} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">To date</span>
+              <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">To date</span>
               <input type="date" value={filters.dateTo ?? ""} onChange={(e) => setFilter({ dateTo: e.target.value || undefined })} className={fieldClass} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Min ₦</span>
+              <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Min ₦</span>
               <input type="number" min="0" value={filters.minAmount ?? ""} onChange={(e) => setFilter({ minAmount: e.target.value || undefined })} className={fieldClass} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide">Max ₦</span>
+              <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Max ₦</span>
               <input type="number" min="0" value={filters.maxAmount ?? ""} onChange={(e) => setFilter({ maxAmount: e.target.value || undefined })} className={fieldClass} />
             </label>
           </div>
@@ -105,12 +105,12 @@ export default function AdminTransactionsPage() {
 
         <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
           {loading ? (
-            <div className="py-16 flex flex-col items-center gap-3 text-[#94A3B8]">
+            <div className="py-16 flex flex-col items-center gap-3 text-[#64748B]">
               <Loader2 size={24} className="animate-spin" />
               <p className="text-sm">Loading transactions…</p>
             </div>
           ) : txns.length === 0 ? (
-            <div className="py-16 text-center text-[#94A3B8] text-sm flex flex-col items-center gap-2">
+            <div className="py-16 text-center text-[#64748B] text-sm flex flex-col items-center gap-2">
               <Receipt size={22} />
               No transactions match your filters
             </div>
@@ -118,7 +118,7 @@ export default function AdminTransactionsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#94A3B8] font-semibold uppercase tracking-wider">
+                  <tr className="border-b border-[#F1F5F9] text-left text-xs text-[#64748B] font-semibold uppercase tracking-wider">
                     {["Reference", "Type", "Customer", "Description", "Amount", "Status", "Date"].map((h) => (
                       <th key={h} className="px-6 py-4">{h}</th>
                     ))}
@@ -135,7 +135,7 @@ export default function AdminTransactionsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-[#0F172A] font-medium">{t.customerName}</p>
-                        <p className="text-xs text-[#94A3B8]">{t.customerEmail ?? "—"}</p>
+                        <p className="text-xs text-[#64748B]">{t.customerEmail ?? "—"}</p>
                       </td>
                       <td className="px-6 py-4 text-[#475569] text-xs">{t.description}</td>
                       <td className="px-6 py-4 font-semibold text-[#2563EB]">₦{Number(t.amount).toLocaleString()}</td>
